@@ -4,6 +4,41 @@ title: "About"
 permalink: /about/
 ---
 
-# Author
+# Automate yourself!
 
-I am Romero.
+I am Romero. I have over 12 years of experience in software development and mission critical IT operations across different countries. From network engineering all the way to automated deployments of "serverless" workloads, I have always been curious and passionate about implementing and defining the next industry technology stack.
+
+Some of the professional credentials I have acquired through the years, either out of curiosity or just for the thrill of being tested, are listed below in no order of relevance:
+
+* AWS Security Specialty
+* AWS Solutions Architect
+* ITILv3
+* CCNA
+* CCNA Security
+* CCNA Voice
+* CCNP
+* Cisco IOS Specialist
+* HP Network Integration Specialist
+* HP BladeSystem Solutions Integrator
+* HP Server Solutions Integrator
+
+Some of the programming languages I am most comfortable with:
+
+* TypeScript
+* Go
+* Python
+* Bash/Ksh
+
+Some of the technologies I am comfortable with:
+
+* Terraform & Helm
+* Kubernetes & Docker
+* Google Cloud
+* Amazon Web Services
+* Chef & Ansible
+* CloudStack
+* Ceph Object Storage
+* PostgreSQL
+
+
+I'm reachable at romero@devopsie.com.
