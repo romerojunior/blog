@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Python: Yum Security Updates"
-author: "Romero Jr"
+author: "Romero Galiza"
 comments: true
 ---
 

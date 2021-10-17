@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "CloudStack: Site-to-Site VPN between regions"
-author: "Romero Jr"
+author: "Romero Galiza"
 comments: true
 ---
 

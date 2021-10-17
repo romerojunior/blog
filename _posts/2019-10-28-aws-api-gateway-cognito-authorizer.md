@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "AWS: API Gateway Cognito Authorizer"
-author: "Romero Jr"
+author: "Romero Galiza"
 comments: true
 ---
 

@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Notes on Isometric Projection"
-author: "Romero Jr"
+author: "Romero Galiza"
 comments: true
 ---
 

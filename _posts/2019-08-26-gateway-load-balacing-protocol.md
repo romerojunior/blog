@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Gateway Load Balancing Protocol"
-author: "Romero Jr"
+author: "Romero Galiza"
 comments: true
 ---
 

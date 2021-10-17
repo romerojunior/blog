@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Concourse CI: Pipeline Flow"
-author: "Romero Jr"
+author: "Romero Galiza"
 comments: true
 ---
 

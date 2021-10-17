@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Static Container Scanning with Clair and Klar (or Trivy)"
-author: "Romero Jr"
+author: "Romero Galiza"
 comments: true
 ---
 

@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Cloudian Python API Client"
-author: "Romero Jr"
+author: "Romero Galiza"
 comments: true
 ---
 

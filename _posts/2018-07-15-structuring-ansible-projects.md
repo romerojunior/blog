@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Structuring Ansible Projects"
-author: "Romero Jr"
+author: "Romero Galiza"
 comments: true
 ---
 
