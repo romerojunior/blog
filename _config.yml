@@ -1,1 +1,32 @@
-title: "Jekyll Actions Demo"
+title: "DevOpsie"
+description: "Collection of articles written by Romero Galiza"
+url: "https://blog.devopsie.com"
+
+github-url: "https://github.com/romerojunior/blog"
+github-branch: "gh-pages"
+
+author:
+  name: Romero galiza
+  url: https://blog.devopsie.com
+  email: romero@devopsie.com
+
+markdown: kramdown
+
+exclude:
+  - LICENSE
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - vendor
+
+sass:
+  sass_dir: _sass
+  style: compressed
+
+plugins:
+  - jekyll-feed
+  - jekyll-paginate
+  - jekyll-timeago
+
+permalink: /:year-:month-:day/:title:output_ext
+paginate: 8
