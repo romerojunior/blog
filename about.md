@@ -41,4 +41,18 @@ Some of the technologies and areas I am most comfortable with:
 * PostgreSQL
 * BGP & DDoS Mitigation
 
+# Coffee?
+
 Interested in having a chat? Feel free to contact me at romero@devopsie.com
+
+# Privacy
+
+Nor customers, employers or collaborators I have been personally involved with
+are mentioned or represented in this blog.
+
+# Intelectual property
+
+All examples, articles, and illustrations are licensed under Creative Commons
+BY, meaning that licensees may copy, distribute, display, perform and make
+derivative works and remixes based on it only if they give the author the
+credits.
