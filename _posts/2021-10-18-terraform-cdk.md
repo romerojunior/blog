@@ -10,8 +10,8 @@ comments: true
 As a response to the fast changing pace of nowadays market, operations teams
 should spend less time on routine drudgery, but even with modern tools, the ease
 of provisioning new infrastructure leads to an ever-growing portfolio of
-systems, which often differ in implementatio, turning integration into
-unnecessary puzzles.
+systems, which often greatly differ in implementation, turning integration into
+unnecessary time consuming puzzles.
 
 According to Kief Morris (2016), infrastructure as code comes as an approach to
 automate infrastructure based on practises from software development,
@@ -35,19 +35,19 @@ Terraform and Kubernetes.
 Terraform builds an abstraction layer on the top of a variety of providers APIs,
 such as AWS, GCP, Azure, Vault, and so on. Still, a deep understanding of these
 APIs is necessary. As a software engineer you still need to take decisions on
-how to use and apply them, which is ultimately followed by the decisions on how
+how to use their resources, which is ultimately followed by the decisions on how
 to organize and structure your Terraform code base, which in finally followed by
 the decision on how (and when) to apply such changes.
 
 This collection of decisions can be overwhelming, specially when working with
-architectures such as microservices, for example, Chris Richardson (2019)
-discusses the importance of service decomposition and modularity, where services
-are loosely coupled and communicate only via APIs, leading to leaner
-applications. While true, this normally leads to undesired infrastructure
-overhead.
+architectures such as microservices. Chris Richardson (2019) discusses the
+importance of service decomposition and modularity in microservices, where
+applications are loosely coupled and communicate only via APIs, leading to
+leaner code. While true, this normally leads to an undesired infrastructure
+overhead given that a microservice requires at least the same level of attention
+to infrastructure as a monolithic would.
 
-A microservice requires at least the same level of attention to infrastructure
-as a monolithic would.
+A microservice still needs persistency, networking, security and observability.
 
 ## CDK
 
