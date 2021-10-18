@@ -36,8 +36,8 @@ Terraform builds an abstraction layer on the top of a variety of providers APIs,
 such as AWS, GCP, Azure, Vault, and so on. Still, a deep understanding of these
 APIs is necessary. As a software engineer you still need to take decisions on
 how to use their resources, which is ultimately followed by the decisions on how
-to organize and structure your Terraform code base, which in finally followed by
-the decision on how (and when) to apply such changes.
+to organize and structure your Terraform code base, which is then finally
+followed by the decision on how (and when) to apply such changes.
 
 This collection of decisions can be overwhelming, specially when working with
 architectures such as microservices. Chris Richardson (2019) discusses the
