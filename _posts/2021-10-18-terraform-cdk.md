@@ -65,8 +65,8 @@ Soon enough, major initiatives (like Hashicorp Terraform) started to adopt this
 pattern as an alternative to **declarative approaches** (where we describe an
 intended goal rather than the steps to reach that goal).
 
-Allowing engineers to pragmatically build and maintain cloud resources, using
-well-known programming languages, such as TypeScript brought CDKs to the
+Allowing engineers to pragmatically build and maintain cloud resources using
+well-known programming languages such as TypeScript quickly brought CDKs to the
 spotlight.
 
 ## Approach
