@@ -79,50 +79,76 @@ is through a simplistic `.json` manifest, for example:
 }
 ```
 
-From the software engineer perspective, the example above removes the need for understanding how or where this abstract "database" will be constructed.
+From the software engineer perspective, the example above removes the need for
+understanding how or where this abstract "database" will be concretized.
 
-Now we still need a tool to digest such manifests.
+It is clear that resources as complex as databases can posses a massive
+amount of properties, therefore, this language or contract must come with a set
+of well documented default values.
 
-## CDK
+The team itself must determine what the defaults are. For example, these values
+could be taken as "the recommended values for a minimal workload", where "a
+minimal workload" consists of X, Y and Z.
 
-While Terraform and alternatives like AWS CloudFormation succeeded in their
-mission, which is to codify cloud APIs into declarative configuration files,
-keeping the infrastructure code base "DRY" is perhaps one of the biggest
-challanges to this day, the market responded to this limitation with solutions
-like Terragrunt, yet, it doesn't feel quite right.
+With the above sorted out, we still need a tool to digest such manifests.
 
-CDK stands for cloud development kit. In practise, it is a SDK for cloud
-resources management. This pattern was initially envisioned by AWS, with its
-first public appearance dating back to 2019 during AWS re:Invent, in Las Vegas.
+> While Terraform and alternatives like AWS CloudFormation succeeded in their
+> mission, which is to codify cloud APIs into declarative configuration files,
+> keeping the infrastructure code base "DRY" is perhaps one of the biggest
+> challanges to this day, the market responded to this limitation with solutions
+> like Terragrunt, yet, it doesn't feel quite right.
+>
+> CDK stands for cloud development kit. In practise, it is a SDK for cloud
+> resources management. This pattern was initially envisioned by AWS, with its
+> first public appearance dating back to 2019 during AWS re:Invent, in Las Vegas.
+>
+> Soon enough, major initiatives (like Hashicorp Terraform) started to adopt this
+> pattern as an alternative to **declarative approaches** (where we describe an
+> intended goal rather than the steps to reach that goal).
+>
+> Allowing engineers to pragmatically build and maintain cloud resources using
+> well-known programming languages such as TypeScript quickly brought CDKs to the
+> spotlight.
 
-Soon enough, major initiatives (like Hashicorp Terraform) started to adopt this
-pattern as an alternative to **declarative approaches** (where we describe an
-intended goal rather than the steps to reach that goal).
+## Digesting manifests
 
-Allowing engineers to pragmatically build and maintain cloud resources using
-well-known programming languages such as TypeScript quickly brought CDKs to the
-spotlight.
+You can rely on Terraform CDK to pragmatically create and orchestrate resources
+across different providers based on such simplistic manifest file, which is the
+basis for an unified abstraction layer to a set of reusable resources common to
+a particular domain (or team).
 
-## Approach
+Take the the proposed workflow, for example:
 
-What if we could build a software to pragmatically create and orchestrate
-resources across different providers based on a simplistic manifest file, thus
-offering an unified abstraction layer to a set of reusable resources common to a
-particular domain.
+1. A sofware engineer provides what resource they need for an application named
+   ABC in an abstract manner, like a "database", a "message queue topic", or a
+   "secret".
+2. An automated process builds the requested set of resources with an
+   opinionated implementation that been previously agreed upon. That is, the
+   process itself knows where and how to build such resources based on minimal
+   user input.
+3. A second software engineer provides what resource they need for an
+   application named XYZ in an abstract manner.
+4. The same automated process from step 2 builds the requested set of resources
+   with the same opinionated implementation.
 
-The proposed lifecycle:
+> ### Convention over configuration
+>
+> The aforementioned resources convey an opinion on how application and
+> infrastructure components should look and behave. Various settings are taken as
+> "convention" rather than "configuration", which decreases the amount of
+> decisions a software engineer has to make.
+>
+> This could imply less flexibility, but it enforces a baseline standard from a
+> single, programable, and versionable source.
 
-* A sofware engineer should provide what resource they need in an abstract
-  manner, like a "database", a "message queue topic", or a "secret".
-* Automation builds their abstract resources with a flavoured implementation,
-  common to a domain (or team).
+## Gambling
 
-## Convention over configuration
+The Terraform CDK project is still in its early stages. Committing all your
+automation efforts into this single solution is still a gamble and its risks
+must be carefully considered when off-loading infrastructure responsibility from
+the daily software engineering tasks.
 
-The aforementioned reusable resources convey an opinion on how application and
-infrastructure components should look and behave. Various settings are taken as
-"convention" rather than "configuration", which decreases the amount of
-decisions an application developer has to make.
+**A conservative implementation that can help mitigating some of the risks is to
+still rely on plain Terraform modules.**
 
-This could imply less flexibility, but it enforces a baseline standard from a
-single, programable, and versionable source.
+![Conservative architecture]({{ "/assets/cdk.svg" | relative_url }})
