@@ -6,9 +6,14 @@ permalink: /about/
 
 # Automate yourself!
 
-I am Romero. I have over 12 years of experience in software development and mission critical IT operations. From network engineering all the way to automated deployments of "serverless" workloads, I have always been curious and passionate about implementing and defining the next industry technology stack.
+I am Romero. I have over 12 years of experience in software development and
+mission critical IT operations. From network engineering all the way to
+automated deployments of "serverless" workloads, I have always been curious and
+passionate about implementing and defining the next industry technology stack.
 
-Some of the professional credentials I have acquired through the years, either out of curiosity or just for the thrill of being tested, are listed below in no order of relevance:
+Some of the professional credentials I have acquired through the years, either
+out of curiosity or just for the thrill of being tested, are listed below in no
+order of relevance:
 
 * AWS Security Specialty
 * AWS Solutions Architect
