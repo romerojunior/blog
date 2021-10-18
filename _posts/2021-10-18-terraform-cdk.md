@@ -157,7 +157,6 @@ still rely on plain Terraform modules as illustrated below.**
 
 ![Conservative architecture]({{ "/assets/cdk.svg" | relative_url }})
 
-In this pattern "business logic" is decoupled from your Modules.
-
-Modules answer the question of "what" (needs to be created or modified), and CDK
-answers the question of "how" through control flows.
+In this pattern the "business logic" is decoupled from Terraform Modules.
+Modules are left to answer the question of "what" [needs to be created or
+modified], with CDK answering the question of "how" [through control flows].
