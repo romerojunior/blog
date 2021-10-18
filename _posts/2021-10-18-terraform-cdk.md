@@ -5,7 +5,7 @@ author: "Romero Galiza"
 comments: true
 ---
 
-## Why infrastructe as code?
+## Why infrastructure as code?
 
 As a response to the fast changing pace of nowadays market, operations teams
 should spend less time on routine drudgery, but even with modern tools, the ease
@@ -30,25 +30,58 @@ still somewhat unrealistic to expect software engineers to fully understand all
 resources and architectural caveats that surrounds their application.
 
 A handful of technologies have been developed to aid this task, such as
-Terraform and Kubernetes.
+Terraform and Helm.
 
 Terraform builds an abstraction layer on the top of a variety of providers APIs,
-such as AWS, GCP, Azure, Vault, and so on. Still, a deep understanding of these
-APIs is necessary. As a software engineer you still need to take decisions on
-how to use their resources, which is ultimately followed by the decisions on how
-to organize and structure your Terraform code base, which is then finally
-followed by the decision on how (and when) to apply such changes.
+such as AWS, GCP, Azure, Vault, Kubernetes, and so on. Still, a deep
+understanding of these APIs is necessary. As a software engineer you still need
+to make decisions on how to use their resources, which is ultimately followed by
+the decision on how to organize and structure your Terraform code base, which is
+then finally followed by the decision on how (and when) to apply such changes
+(this last decision often implemented in continuous integration and delivery
+routines).
 
 This collection of decisions can be overwhelming, specially when working with
 architectures such as microservices. Chris Richardson (2019) discusses the
 importance of service decomposition and modularity in microservices, where
-applications are loosely coupled and communicate only via APIs, leading to
-leaner code. While true, this normally leads to an undesired infrastructure
-overhead given that a microservice requires at least the same level of attention
-to infrastructure as a monolithic would.
+applications are loosely coupled and communicate only via APIs, leading to a
+leaner code base. While true, this normally leads to an undesired infrastructure
+overhead.
 
-A microservice still needs data persistency, networking, security and
-observability.
+A microservice has similar infrastructure requirement to a monolith application,
+it still needs data persistency, networking, security and observability.
+
+## Decoupling strategy
+
+Each application (or service) is contained in its own versioned repository and
+should be aware, **at an abstract level**, what its own infrastructure
+components and requirements are.
+
+At this point, a language (or simply contract) where such components and
+requirements can be universally described is needed. One way to approach this
+is through a simplistic `.json` manifest, for example:
+
+```json
+{
+  "infrastructureComponents": [
+    {
+      "componentType": "database",
+      "name": "example",
+      "props": {
+        "diskSizeGB": 20,
+        "engine": {
+          "type": "postgres",
+          "version": "12"
+        }
+      }
+    }
+  ]
+}
+```
+
+From the software engineer perspective, the example above removes the need for understanding how or where this abstract "database" will be constructed.
+
+Now we still need a tool to digest such manifests.
 
 ## CDK
 
@@ -93,5 +126,3 @@ decisions an application developer has to make.
 
 This could imply less flexibility, but it enforces a baseline standard from a
 single, programable, and versionable source.
-
-
