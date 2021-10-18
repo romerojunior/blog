@@ -47,7 +47,8 @@ leaner code. While true, this normally leads to an undesired infrastructure
 overhead given that a microservice requires at least the same level of attention
 to infrastructure as a monolithic would.
 
-A microservice still needs persistency, networking, security and observability.
+A microservice still needs data persistency, networking, security and
+observability.
 
 ## CDK
 
