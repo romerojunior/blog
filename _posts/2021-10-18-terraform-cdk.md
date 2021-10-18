@@ -131,6 +131,10 @@ Take the the proposed workflow, for example:
 4. The same automated process from step 2 builds the requested set of resources
    with the same opinionated implementation.
 
+Updating resouces works in the same way. Terraform CDK still relies on
+plain Terraform. It synthetizes a plan based on controlled flow written in a
+given programming language.
+
 > ### Convention over configuration
 >
 > The aforementioned resources convey an opinion on how application and
@@ -149,6 +153,11 @@ must be carefully considered when off-loading infrastructure responsibility from
 the daily software engineering tasks.
 
 **A conservative implementation that can help mitigating some of the risks is to
-still rely on plain Terraform modules.**
+still rely on plain Terraform modules as illustrated below.**
 
 ![Conservative architecture]({{ "/assets/cdk.svg" | relative_url }})
+
+In this pattern "business logic" is decoupled from your Modules.
+
+Modules answer the question of "what" (needs to be created or modified), and CDK
+answers the question of "how" through control flows.
