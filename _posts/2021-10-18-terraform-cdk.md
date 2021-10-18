@@ -67,7 +67,7 @@ is through a simplistic `.json` manifest, for example:
     {
       "componentType": "database",
       "name": "example",
-      "props": {
+      "properties": {
         "diskSizeGB": 20,
         "engine": {
           "type": "postgres",
