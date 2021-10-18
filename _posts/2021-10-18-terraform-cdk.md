@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Use case: Infrastructure as code with Terraform CDK"
+title: "Infrastructure as code with Terraform CDK"
 author: "Romero Galiza"
 comments: true
 ---
@@ -60,7 +60,7 @@ like Terragrunt, yet, it doesn't feel quite right.
 
 CDK stands for cloud development kit. In practise, it is a SDK for cloud
 resources management. This pattern was initially envisioned by AWS, with its
-first public appearance dating back to 2019 at AWS re:Invent.
+first public appearance dating back to 2019 during AWS re:Invent, in Las Vegas.
 
 Soon enough, major initiatives (like Hashicorp Terraform) started to adopt this
 pattern as an alternative to **declarative approaches** (where we describe an
