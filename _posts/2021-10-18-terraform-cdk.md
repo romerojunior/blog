@@ -123,7 +123,7 @@ Take the the proposed workflow, for example:
    ABC in an abstract manner, like a "database", a "message queue topic", or a
    "secret".
 2. An automated process builds the requested set of resources with an
-   opinionated implementation that been previously agreed upon. That is, the
+   opinionated implementation that has been previously agreed upon. That is, the
    process itself knows where and how to build such resources based on minimal
    user input.
 3. A second software engineer provides what resource they need for an
