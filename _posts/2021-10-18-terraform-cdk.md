@@ -7,7 +7,7 @@ comments: true
 
 ## Why infrastructure as code?
 
-As a response to the fast changing pace of nowadays market, operations teams
+As a response to the fast changing pace of nowadays market, development teams
 should spend less time on routine drudgery, but even with modern tools, the ease
 of provisioning new infrastructure leads to an ever-growing portfolio of
 systems, which often greatly differ in implementation, turning integration into
@@ -52,6 +52,9 @@ A microservice has similar infrastructure requirement to a monolith application,
 it still needs data persistency, networking, security and observability.
 
 ## Decoupling strategy
+
+In order to decouple infrastructure specification from application the following
+will be assumed:
 
 Each application (or service) is contained in its own versioned repository and
 should be aware, **at an abstract level**, what its own infrastructure
@@ -119,15 +122,15 @@ a particular domain (or team).
 
 Take the the proposed workflow, for example:
 
-1. A sofware engineer provides what resource they need for an application named
-   ABC in an abstract manner, like a "database", a "message queue topic", or a
-   "secret".
-2. An automated process builds the requested set of resources with an
-   opinionated implementation that has been previously agreed upon. That is, the
-   process itself knows where and how to build such resources based on minimal
-   user input.
-3. A second software engineer provides what resource they need for an
-   application named XYZ in an abstract manner.
+1. A sofware engineer provides a list with the resources required by an
+   application named ABC. As previously discussed, these resources must be
+   defined in an abstract manner, like a "database", a "message queue topic", or
+   a "secret".
+2. An automated process takes the list of resources as an input and synthetizes
+   an opinionated implementation. For example, this process must know what and
+   how to build a "database" based on minimal user input.
+3. Later on, a second software engineer provides a list with the resources they
+   need for an application named XYZ, again in an abstract manner.
 4. The same automated process from step 2 builds the requested set of resources
    with the same opinionated implementation.
 
@@ -160,3 +163,13 @@ still rely on plain Terraform modules as illustrated below.**
 In this pattern the "business logic" is decoupled from Terraform Modules.
 Modules are left to answer the question of "what" [needs to be created or
 modified], with CDK answering the question of "how" [through control flows].
+
+## Final thoughts
+
+Building an abstraction layer on the top of Terraform can help simplifying
+operations, however, at this point in time it is still early to declare this
+approach successful.
+
+**Personally I would rather be an early adopter and fail fast if necessary**, so
+I will continue experimenting with CDK, and hopefully my efforts will yield
+interesting articles.
