@@ -41,10 +41,13 @@ Some of the technologies and areas I am most comfortable with:
 * Google Cloud Platform
 * Amazon Web Services
 * Chef & Ansible
+* Vault
 * CloudStack
+* F5 Load Balancers
 * Ceph Object Storage
 * PostgreSQL
 * BGP & DDoS Mitigation
+* Cisco, Juniper & Arista
 
 # Coffee?
 
