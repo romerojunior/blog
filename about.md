@@ -40,15 +40,17 @@ Some of the technologies, products and areas I am most comfortable with:
 * Kubernetes & Helm
 * Google Cloud Platform
 * Amazon Web Services
-* Chef, Ansible & Fabric
+* "Vintage" automation (Chef, Ansible & Fabric)
 * Hashicorp Vault
-* On-prem: CloudStack & VMWare vCenter
+* Cloud On-prem (CloudStack & VMWare vCenter)
 * Type 1 Hypervisors (ESXi, KVM)
 * F5 BIG-IP
 * Ceph Object Storage
-* PostgreSQL
+* MariaDB & PostgreSQL
 * BGP & DDoS Mitigation
 * Cisco (IOS), Juniper (Junos OS) & Arista (EOS)
+* Observability (Graphite, Prometheus, InfluxDB, OpenTelemetry & Grafana)
+
 
 # Coffee?
 
