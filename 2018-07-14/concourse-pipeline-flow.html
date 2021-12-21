@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-122432016-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-122432016-1');
+</script>
+
+  
+
+  <title>
+    
+      Concourse CI: Pipeline Flow &middot; DevOpsie
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Fira+Mono:400,700'>
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+
+  <!-- RSS -->
+  <link type="application/atom+xml" rel="alternate" href="https://blog.devopsie.com/feed.xml" title="DevOpsie" />
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/">
+          <h2 class="nav-title">DevOpsie<span class="wired-dot">!</span></h2>
+        </a>
+        <ul>
+          <li><a href="/about">About</a></li>
+          <li><a href="/">Posts</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Romero Galiza
+    
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2018-07-14 00:00:00 +0000">July 14, 2018</time>
+    
+  </div>
+
+  <h1 class="post-title">Concourse CI: Pipeline Flow</h1>
+  <div class="post-line"></div>
+
+  <p>This is just a small contribution for those starting with <a href="https://concourse-ci.org/">Concourse CI</a>. As Concourse claims to be built on the simple mechanics of resources, tasks, and job, I will assume you are already familiar with these concepts.</p>
+
+<p>The diagram below is just a visual representation of how data may flow from task to task and from job to job within a pipeline (only taking into account: <code class="language-plaintext highlighter-rouge">get</code>, <code class="language-plaintext highlighter-rouge">put</code> and <code class="language-plaintext highlighter-rouge">task</code> <a href="https://concourse-ci.org/steps.html">steps</a>).</p>
+
+<p><img src="/assets/concourseflow.png" alt="Concourse pipeline flow" />
+<em>Concourse pipeline flow</em></p>
+
+<p>Each arrow contains a description (<code class="language-plaintext highlighter-rouge">get</code>, <code class="language-plaintext highlighter-rouge">put</code>, <code class="language-plaintext highlighter-rouge">inputs</code>, <code class="language-plaintext highlighter-rouge">outputs</code>) that maps directly to the key you will use in your pipeline YAML definition. The diagram above could be written as the following pseudo-pipeline:</p>
+
+<div class="language-yml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">---</span>
+<span class="na">resources</span><span class="pi">:</span>
+  <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">resource-x</span>
+    <span class="na">type</span><span class="pi">:</span> <span class="s">git</span>
+    <span class="na">source</span><span class="pi">:</span> <span class="c1"># (...)</span>
+
+  <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">resource-y</span>
+    <span class="na">type</span><span class="pi">:</span> <span class="s">git</span>
+    <span class="na">source</span><span class="pi">:</span> <span class="c1"># (...)</span>
+
+  <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">resource-z</span>
+    <span class="na">type</span><span class="pi">:</span> <span class="s">artifactory</span>
+    <span class="na">source</span><span class="pi">:</span> <span class="c1"># (...)</span>
+
+<span class="na">jobs</span><span class="pi">:</span>
+
+  <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">job-a</span>
+    <span class="na">plan</span><span class="pi">:</span>
+      <span class="pi">-</span> <span class="na">get</span><span class="pi">:</span> <span class="s">resource-x</span>
+
+      <span class="pi">-</span> <span class="na">task</span><span class="pi">:</span> <span class="s">task-a</span>
+        <span class="na">config</span><span class="pi">:</span>
+          <span class="na">platform</span><span class="pi">:</span> <span class="c1"># (...)</span>
+          <span class="na">image_resource</span><span class="pi">:</span> <span class="c1"># (...)</span>
+
+          <span class="na">inputs</span><span class="pi">:</span>
+            <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">resource-x</span>
+
+          <span class="na">run</span><span class="pi">:</span> <span class="c1"># (...)</span>
+
+          <span class="na">outputs</span><span class="pi">:</span>
+            <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">my-result-a</span>
+
+      <span class="pi">-</span> <span class="na">task</span><span class="pi">:</span> <span class="s">task-b</span>
+        <span class="na">config</span><span class="pi">:</span>
+          <span class="na">platform</span><span class="pi">:</span> <span class="c1"># (...)</span>
+          <span class="na">image_resource</span><span class="pi">:</span> <span class="c1"># (...)</span>
+
+          <span class="na">inputs</span><span class="pi">:</span>
+            <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">my-result-a</span>
+
+          <span class="na">run</span><span class="pi">:</span> <span class="c1"># (...)</span>
+
+          <span class="na">outputs</span><span class="pi">:</span>
+            <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">my-result-b</span>
+
+      <span class="pi">-</span> <span class="na">task</span><span class="pi">:</span> <span class="s">task-c</span>
+        <span class="na">config</span><span class="pi">:</span>
+          <span class="na">platform</span><span class="pi">:</span> <span class="c1"># (...)</span>
+          <span class="na">image_resource</span><span class="pi">:</span> <span class="c1"># (...)</span>
+
+          <span class="na">inputs</span><span class="pi">:</span>
+            <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">my-result-b</span>
+
+          <span class="na">run</span><span class="pi">:</span> <span class="c1"># (...)</span>
+
+          <span class="na">outputs</span><span class="pi">:</span>
+            <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">resource-z</span>
+
+      <span class="pi">-</span> <span class="na">put</span><span class="pi">:</span> <span class="s">resource-z</span>
+
+  <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">job-b</span>
+    <span class="na">plan</span><span class="pi">:</span>
+      <span class="pi">-</span> <span class="na">get</span><span class="pi">:</span> <span class="s">resource-y</span>
+
+      <span class="pi">-</span> <span class="na">task</span><span class="pi">:</span> <span class="s">task-a</span>
+        <span class="na">config</span><span class="pi">:</span>
+          <span class="na">platform</span><span class="pi">:</span> <span class="c1"># (...)</span>
+          <span class="na">image_resource</span><span class="pi">:</span> <span class="c1"># (...)</span>
+
+          <span class="na">inputs</span><span class="pi">:</span>
+            <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">resource-y</span>
+
+          <span class="na">run</span><span class="pi">:</span> <span class="c1"># (...)</span>
+
+          <span class="na">outputs</span><span class="pi">:</span>
+            <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">my-result-a</span>
+
+      <span class="pi">-</span> <span class="na">task</span><span class="pi">:</span> <span class="s">task-b</span>
+        <span class="na">config</span><span class="pi">:</span>
+          <span class="na">platform</span><span class="pi">:</span> <span class="c1"># (...)</span>
+          <span class="na">image_resource</span><span class="pi">:</span> <span class="c1"># (...)</span>
+
+          <span class="na">inputs</span><span class="pi">:</span>
+            <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">my-result-a</span>
+
+          <span class="na">run</span><span class="pi">:</span> <span class="c1"># (...)</span>
+
+          <span class="na">outputs</span><span class="pi">:</span>
+            <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">my-result-b</span>
+
+      <span class="pi">-</span> <span class="na">task</span><span class="pi">:</span> <span class="s">task-c</span>
+        <span class="na">config</span><span class="pi">:</span>
+          <span class="na">platform</span><span class="pi">:</span> <span class="c1"># (...)</span>
+          <span class="na">image_resource</span><span class="pi">:</span> <span class="c1"># (...)</span>
+
+          <span class="na">inputs</span><span class="pi">:</span>
+            <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">my-result-b</span>
+
+          <span class="na">run</span><span class="pi">:</span> <span class="c1"># (...)</span>
+
+          <span class="na">outputs</span><span class="pi">:</span>
+            <span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="c1"># (...)</span>
+
+<span class="c1"># and so on...</span>
+</code></pre></div></div>
+
+<p>Even though the official documentation only covers <code class="language-plaintext highlighter-rouge">volumes</code> from a reasonably broad perspective, I think it’s essential to understand their role within a pipeline context a bit deeper.</p>
+
+<h2 id="volumes">Volumes</h2>
+
+<p>Work in progress…</p>
+
+
+  
+    
+        <!-- Disqus comment section -->
+<div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://blog.devopsie.com/2018-07-14/concourse-pipeline-flow.html';
+    this.page.identifier = '/2018-07-14/concourse-pipeline-flow';
+  };
+
+  (function () {
+    var d = document, s = d.createElement('script');
+    s.src = 'https://devopsie.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by
+    Disqus.</a></noscript>
+    
+  
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/2018-07-15/structuring-ansible-projects.html" class="left arrow">&#8592;</a>
+  
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+      <span>
+        &copy; <time datetime="2021-12-21 20:11:55 +0000">2021</time> Romero Galiza.
+      </span>
+    </footer>
+  </body>
+</html>

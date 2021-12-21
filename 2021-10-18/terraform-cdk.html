@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-122432016-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-122432016-1');
+</script>
+
+  
+
+  <title>
+    
+      Infrastructure as code with Terraform CDK &middot; DevOpsie
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Fira+Mono:400,700'>
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+
+  <!-- RSS -->
+  <link type="application/atom+xml" rel="alternate" href="https://blog.devopsie.com/feed.xml" title="DevOpsie" />
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/">
+          <h2 class="nav-title">DevOpsie<span class="wired-dot">!</span></h2>
+        </a>
+        <ul>
+          <li><a href="/about">About</a></li>
+          <li><a href="/">Posts</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Romero Galiza
+    
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2021-10-18 00:00:00 +0000">October 18, 2021</time>
+    
+  </div>
+
+  <h1 class="post-title">Infrastructure as code with Terraform CDK</h1>
+  <div class="post-line"></div>
+
+  <h2 id="why-infrastructure-as-code">Why infrastructure as code?</h2>
+
+<p>As a response to the fast changing pace of nowadays market, development teams
+should spend less time on routine drudgery, but even with modern tools, the ease
+of provisioning new infrastructure leads to an ever-growing portfolio of
+systems, which often greatly differ in implementation, turning integration into
+unnecessary time consuming puzzles.</p>
+
+<p>According to Kief Morris (2016), infrastructure as code comes as an approach to
+automate infrastructure based on practises from software development,
+emphasizing idempotent, repeatable routines for provisioning and changing
+systems and their configuration.</p>
+
+<blockquote>
+  <p><em>“The premise is that modern tooling can treat infrastructure as if it were</em>
+<em>software and data.” (Kief Morris, 2016)</em></p>
+</blockquote>
+
+<h2 id="problem-description">Problem description</h2>
+
+<p>With the advancements and increasing popularity of cloud providers, software
+development teams are now closer to infrastructure than ever, however, it is
+still somewhat unrealistic to expect software engineers to fully understand all
+resources and architectural caveats that surrounds their application.</p>
+
+<p>A handful of technologies have been developed to aid this task, such as
+Terraform and Helm.</p>
+
+<p>Terraform builds an abstraction layer on the top of a variety of providers APIs,
+such as AWS, GCP, Azure, Vault, Kubernetes, and so on. Still, a deep
+understanding of these APIs is necessary. As a software engineer you still need
+to make decisions on how to use their resources, which is ultimately followed by
+the decision on how to organize and structure your Terraform code base, which is
+then finally followed by the decision on how (and when) to apply such changes
+(this last decision often implemented in continuous integration and delivery
+routines).</p>
+
+<p>This collection of decisions can be overwhelming, specially when working with
+architectures such as microservices. Chris Richardson (2019) discusses the
+importance of service decomposition and modularity in microservices, where
+applications are loosely coupled and communicate only via APIs, leading to a
+leaner code base. While true, this normally leads to an undesired infrastructure
+overhead.</p>
+
+<p>A microservice has similar infrastructure requirement to a monolith application,
+it still needs data persistency, networking, security and observability.</p>
+
+<h2 id="decoupling-strategy">Decoupling strategy</h2>
+
+<p>In order to decouple infrastructure specification from application the following
+will be assumed:</p>
+
+<p>Each application (or service) is contained in its own versioned repository and
+should be aware, <strong>at an abstract level</strong>, what its own infrastructure
+components and requirements are.</p>
+
+<p>At this point, a language (or simply contract) where such components and
+requirements can be universally described is needed. One way to approach this
+is through a simplistic <code class="language-plaintext highlighter-rouge">.json</code> manifest, for example:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"infrastructureComponents"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+    </span><span class="p">{</span><span class="w">
+      </span><span class="nl">"componentType"</span><span class="p">:</span><span class="w"> </span><span class="s2">"database"</span><span class="p">,</span><span class="w">
+      </span><span class="nl">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"example"</span><span class="p">,</span><span class="w">
+      </span><span class="nl">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+        </span><span class="nl">"diskSizeGB"</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w">
+        </span><span class="nl">"engine"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+          </span><span class="nl">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"postgres"</span><span class="p">,</span><span class="w">
+          </span><span class="nl">"version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"12"</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+      </span><span class="p">}</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+  </span><span class="p">]</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p>From the software engineer perspective, the example above removes the need for
+understanding how or where this abstract “database” will be concretized.</p>
+
+<p>It is clear that resources as complex as databases can posses a massive
+amount of properties, therefore, this language or contract must come with a set
+of well documented default values.</p>
+
+<p>The team itself must determine what the defaults are. For example, these values
+could be taken as “the recommended values for a minimal workload”, where “a
+minimal workload” consists of X, Y and Z.</p>
+
+<p>With the above sorted out, we still need a tool to digest such manifests.</p>
+
+<blockquote>
+  <p>While Terraform and alternatives like AWS CloudFormation succeeded in their
+mission, which is to codify cloud APIs into declarative configuration files,
+keeping the infrastructure code base “DRY” is perhaps one of the biggest
+challanges to this day, the market responded to this limitation with solutions
+like Terragrunt, yet, it doesn’t feel quite right.</p>
+
+  <p>CDK stands for cloud development kit. In practise, it is a SDK for cloud
+resources management. This pattern was initially envisioned by AWS, with its
+first public appearance dating back to 2019 during AWS re:Invent, in Las Vegas.</p>
+
+  <p>Soon enough, major initiatives (like Hashicorp Terraform) started to adopt this
+pattern as an alternative to <strong>declarative approaches</strong> (where we describe an
+intended goal rather than the steps to reach that goal).</p>
+
+  <p>Allowing engineers to pragmatically build and maintain cloud resources using
+well-known programming languages such as TypeScript quickly brought CDKs to the
+spotlight.</p>
+</blockquote>
+
+<h2 id="digesting-manifests">Digesting manifests</h2>
+
+<p>You can rely on Terraform CDK to pragmatically create and orchestrate resources
+across different providers based on such simplistic manifest file, which is the
+basis for an unified abstraction layer to a set of reusable resources common to
+a particular domain (or team).</p>
+
+<p>Take the the proposed workflow, for example:</p>
+
+<ol>
+  <li>A sofware engineer provides a list with the resources required by an
+application named ABC. As previously discussed, these resources must be
+defined in an abstract manner, like a “database”, a “message queue topic”, or
+a “secret”.</li>
+  <li>An automated process takes the list of resources as an input and synthetizes
+an opinionated implementation. For example, this process must know what and
+how to build a “database” based on minimal user input.</li>
+  <li>Later on, a second software engineer provides a list with the resources they
+need for an application named XYZ, again in an abstract manner.</li>
+  <li>The same automated process from step 2 builds the requested set of resources
+with the same opinionated implementation.</li>
+</ol>
+
+<p>Updating resouces works in the same way. Terraform CDK still relies on
+plain Terraform. It synthetizes a plan based on controlled flow written in a
+given programming language.</p>
+
+<blockquote>
+  <h3 id="convention-over-configuration">Convention over configuration</h3>
+
+  <p>The aforementioned resources convey an opinion on how application and
+infrastructure components should look and behave. Various settings are taken as
+“convention” rather than “configuration”, which decreases the amount of
+decisions a software engineer has to make.</p>
+
+  <p>This could imply less flexibility, but it enforces a baseline standard from a
+single, programable, and versionable source.</p>
+</blockquote>
+
+<h2 id="gambling">Gambling</h2>
+
+<p>The Terraform CDK project is still in its early stages. Committing all your
+automation efforts into this single solution is still a gamble and its risks
+must be carefully considered when off-loading infrastructure responsibility from
+the daily software engineering tasks.</p>
+
+<p><strong>A conservative implementation that can help mitigating some of the risks is to
+still rely on plain Terraform modules as illustrated below.</strong></p>
+
+<p><img src="/assets/cdk.svg" alt="Conservative architecture" /></p>
+
+<p>In this pattern the “business logic” is decoupled from Terraform Modules.
+Modules are left to answer the question of “what” [needs to be created or
+modified], with CDK answering the question of “how” [through control flows].</p>
+
+<h2 id="final-thoughts">Final thoughts</h2>
+
+<p>Building an abstraction layer on the top of Terraform can help simplifying
+operations, however, at this point in time it is still early to declare this
+approach successful.</p>
+
+<p><strong>Personally I would rather be an early adopter and fail fast if necessary</strong>, so
+I will continue experimenting with CDK, and hopefully my efforts will yield
+interesting articles.</p>
+
+
+  
+    
+        <!-- Disqus comment section -->
+<div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://blog.devopsie.com/2021-10-18/terraform-cdk.html';
+    this.page.identifier = '/2021-10-18/terraform-cdk';
+  };
+
+  (function () {
+    var d = document, s = d.createElement('script');
+    s.src = 'https://devopsie.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by
+    Disqus.</a></noscript>
+    
+  
+
+</div>
+
+<div class="pagination">
+  
+  
+    <a href="/2019-10-29/clair-container-analysis.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+      <span>
+        &copy; <time datetime="2021-12-21 20:11:55 +0000">2021</time> Romero Galiza.
+      </span>
+    </footer>
+  </body>
+</html>

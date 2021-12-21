@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-122432016-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-122432016-1');
+</script>
+
+  
+
+  <title>
+    
+      Structuring Ansible Projects &middot; DevOpsie
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Fira+Mono:400,700'>
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+
+  <!-- RSS -->
+  <link type="application/atom+xml" rel="alternate" href="https://blog.devopsie.com/feed.xml" title="DevOpsie" />
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/">
+          <h2 class="nav-title">DevOpsie<span class="wired-dot">!</span></h2>
+        </a>
+        <ul>
+          <li><a href="/about">About</a></li>
+          <li><a href="/">Posts</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Romero Galiza
+    
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2018-07-15 00:00:00 +0000">July 15, 2018</time>
+    
+  </div>
+
+  <h1 class="post-title">Structuring Ansible Projects</h1>
+  <div class="post-line"></div>
+
+  <p>Those experienced with Chef probably first heard about reusability, structuring and versioning when writing their very first cookbook, but as a newcomer to Ansible and facing AWX for the very first time, this seems to be one of the last explored topics, if not left completely unanswered (mostly due to Ansible’s simplistic nature).</p>
+
+<p>Even though Ansible provides engineers with a decent amount of information on roles and playbooks, it still leaves room for interpretation on how your code should be structured within an organization or a team. Without prior experience it may be a challenge to visualise the end product, specially in the long term. The question is: How can we organize our Ansible code in a intuitive and readable way, and improve reusability at the same time?</p>
+
+<p>In order to answer the question, firstly, an understanding of what each component is concerned about and how they can be accessed need to be agreed upon. Below you will find guidelines based on how I’ve personally interpretated the problem.</p>
+
+<h1 id="access-policy">Access policy</h1>
+
+<ul>
+  <li>
+    <p>Roles are intrinsically public, therefore they must not hold any private information.</p>
+  </li>
+  <li>
+    <p>Playbooks are threated as private, considering they may contain data that should not be publically accessed or shared across teams, for example: variables storing valuable information about a particular host.</p>
+  </li>
+</ul>
+
+<h1 id="separation-of-concerns">Separation of concerns</h1>
+
+<h2 id="separation-of-concerns-within-roles">Separation of concerns within roles</h2>
+
+<ul>
+  <li>
+    <p>Roles must not contain any unsolved dependencies, for example: If a specific package is required for a given role to function, this dependency needs to be dealt within the role itself.</p>
+  </li>
+  <li>
+    <p>If a given value may change depending on external requirements, this value should be defined as a variable (allowing for a playbook to override it if and when needed).</p>
+  </li>
+  <li>
+    <p>Each role is free to <code class="language-plaintext highlighter-rouge">set_facts</code> on any host. This is particularly useful as triggers for further steps within a playbook (but never another role, since ideally roles should never be aware or depend on a different role). I personally like to think about this as the way a role can communicate back to a playbook.</p>
+
+    <ul>
+      <li>When set, a fact <strong>must</strong> be <strong>defined</strong> within all test cases. For example, if you need to set a fact such as <code class="language-plaintext highlighter-rouge">update_needed = true</code>, its value needs to default to something (either <code class="language-plaintext highlighter-rouge">true</code> or <code class="language-plaintext highlighter-rouge">false</code>). A host should never finish running a role without defining <code class="language-plaintext highlighter-rouge">update_needed</code>. A short example:</li>
+    </ul>
+  </li>
+</ul>
+
+<div class="language-yml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Let's pretend for a minute we're writing a task within a role responsible for checking if any updates are need within a CentOS/RHEL host...</span>
+
+<span class="c1"># start assuming no updates are needed (default behaviour):</span>
+<span class="pi">-</span> <span class="na">set_fact</span><span class="pi">:</span>
+    <span class="na">update_needed</span><span class="pi">:</span> <span class="no">false</span>
+
+<span class="c1"># check if updates are needed...</span>
+<span class="pi">-</span> <span class="na">name</span><span class="pi">:</span> <span class="s">check yum updates</span>
+  <span class="na">command</span><span class="pi">:</span> <span class="s2">"</span><span class="s">yum</span><span class="nv"> </span><span class="s">check-update</span><span class="nv"> </span><span class="s">-q"</span>
+  <span class="na">register</span><span class="pi">:</span> <span class="s">yum_results</span>
+
+<span class="c1"># ...if so, set fact to true:</span>
+<span class="pi">-</span> <span class="na">set_fact</span><span class="pi">:</span>
+    <span class="na">update_needed</span><span class="pi">:</span> <span class="no">true</span>
+  <span class="na">when</span><span class="pi">:</span> <span class="s">yum_results.rc | int == </span><span class="m">100</span>
+</code></pre></div></div>
+
+<ul>
+  <li>
+    <p>Each role has the responsibility to deal with technicalities such as:</p>
+
+    <ul>
+      <li>Handling different operational systems; and</li>
+      <li>Catching execution failures;</li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="separation-of-concerns-within-playbooks">Separation of concerns within playbooks</h2>
+
+<p>As technicalities are left for roles to deal with, in theory each playbook should be straight forward:</p>
+
+<ul>
+  <li>
+    <p>Each playbook is aware of the details of the environment (represented within an inventory) in which it will be running against.</p>
+  </li>
+  <li>
+    <p>A playbook can overwrite role default variables when needed (allowing each team to customize the execution of a whole without unnecessary code changes, as previously stated).</p>
+  </li>
+  <li>
+    <p>A good playbook would ideally only control the flow in which roles are executed, managing triggers, for example:</p>
+  </li>
+</ul>
+
+<div class="language-yml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Assume you have a playbook responsible for patching hosts:</span>
+
+<span class="pi">-</span> <span class="na">hosts</span><span class="pi">:</span> <span class="s">all</span>
+  <span class="na">gather_facts</span><span class="pi">:</span> <span class="no">true</span>
+  <span class="na">become</span><span class="pi">:</span> <span class="s">yes</span>
+  <span class="na">roles</span><span class="pi">:</span>
+    <span class="pi">-</span> <span class="na">role</span><span class="pi">:</span> <span class="s">check-updates</span>
+
+    <span class="pi">-</span> <span class="na">role</span><span class="pi">:</span> <span class="s">install-updates</span>
+      <span class="na">when</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="s">update_needed | default(false)</span>
+
+    <span class="pi">-</span> <span class="na">role</span><span class="pi">:</span> <span class="s">reboot-host</span>
+      <span class="na">when</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="s">reboot_required | default(false)</span>
+
+    <span class="c1"># check-updates sets a fact called "update_needed"</span>
+    <span class="c1"># install-updates is triggered if "update_needed" is true</span>
+    <span class="c1"># install-updates sets a fact called "reboot_required"</span>
+    <span class="c1"># reboot-host is triggered if "reboot_required" is true</span>
+</code></pre></div></div>
+
+<ul>
+  <li>
+    <p>Again, if a given value may change depending on execution requirements, this value should be defined as a variable (allowing the engineer to change its execution behaviour without unnecessary code changes).</p>
+  </li>
+  <li>
+    <p>Playbooks should import/install roles through the <code class="language-plaintext highlighter-rouge">requirements.yml</code> file, as documented <a href="https://docs.ansible.com/ansible/latest/reference_appendices/galaxy.html#installing-roles">here</a>, instead of having their code simply moved, pasted or cloned.</p>
+  </li>
+</ul>
+
+<h1 id="directory-structure-and-git">Directory structure and Git</h1>
+
+<p>With the agreement above in mind, the last question to be answered is how to organize all the roles and playbooks directory structure.
+The approach I personally opt for is rather simple, where each role or playbook is a repository of its own. For example:</p>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ansible/
+│
+├── playbooks/
+│   ├── play_automated_patching/  &lt;──┐
+│   ├── play_baseline_config/     &lt;──┼─ private repositories
+│   └── play_setup_django/        &lt;──┘
+│
+├── roles/
+│   ├── role_install_nginx/       &lt;──┐
+│   ├── role_install_mariadb/     &lt;──┤
+│   ├── role_install_python/      &lt;──┼─ public repositories
+│   ├── role_install_updates/     &lt;──┤
+│   ├── role_reboot_host/         &lt;──┤
+│   └── role_check_updates/       &lt;──┘
+│
+└── README.md
+
+</code></pre></div></div>
+
+<h1 id="final-considerations">Final considerations</h1>
+
+<p>No matter what rules, architecture or pattern you end up opting for, they must be shared and respected by all of those involved in maintaining the Ansible code base, I believe this is a fundamental key in improving reusability and quality.</p>
+
+
+  
+    
+        <!-- Disqus comment section -->
+<div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://blog.devopsie.com/2018-07-15/structuring-ansible-projects.html';
+    this.page.identifier = '/2018-07-15/structuring-ansible-projects';
+  };
+
+  (function () {
+    var d = document, s = d.createElement('script');
+    s.src = 'https://devopsie.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by
+    Disqus.</a></noscript>
+    
+  
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/2018-07-31/cloudian-python-api-client.html" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/2018-07-14/concourse-pipeline-flow.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+      <span>
+        &copy; <time datetime="2021-12-21 20:11:55 +0000">2021</time> Romero Galiza.
+      </span>
+    </footer>
+  </body>
+</html>

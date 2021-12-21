@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-122432016-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-122432016-1');
+</script>
+
+  
+
+  <title>
+    
+      Notes on Isometric Projection &middot; DevOpsie
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Fira+Mono:400,700'>
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+
+  <!-- RSS -->
+  <link type="application/atom+xml" rel="alternate" href="https://blog.devopsie.com/feed.xml" title="DevOpsie" />
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/">
+          <h2 class="nav-title">DevOpsie<span class="wired-dot">!</span></h2>
+        </a>
+        <ul>
+          <li><a href="/about">About</a></li>
+          <li><a href="/">Posts</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Romero Galiza
+    
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2019-08-20 00:00:00 +0000">August 20, 2019</time>
+    
+  </div>
+
+  <h1 class="post-title">Notes on Isometric Projection</h1>
+  <div class="post-line"></div>
+
+  <p>The concept of an isometric projection (from the Greek, ísos: “equal” and metrikós: “measure”), or simply: parallel perspective, had existed in a rough empirical form for centuries as a method for visually representing three-dimensional objects in two dimensions. The whole idea consists in keeping the three coordinate axes (x, y and z) equally foreshortened and making the angles between any two of them as 120 degrees.</p>
+
+<p><img src="/assets/isometric.png" alt="Isometric Angles" /></p>
+
+<p>To project your drawing isometrically, let’s say: a generic computer network topology, all your elements (devices, cabling, surfaces, etc) must obey this rule and as a result you will end up with the following aspect:</p>
+
+<p><img src="/assets/example.png" alt="Example" /></p>
+
+<p>Many flavours of drawing tools are currently available in the market, I opted to embed Microsoft Visio in this discussion as it turned out to be considerably popular among Information Technology engineers. The easiest way to freely draw isometric elements is to use an isometric grid. An isometric grid can be described as an backgroud pattern of isometric shapes that can be used as a guide for your shapes and drawings. For example:</p>
+
+<p><img src="/assets/grid.png" alt="Grid" /></p>
+
+<p>Unfortunately Microsoft Visio does not support such feature, which makes this article relevant for any tool you may use. Luckily you can easily find templates on-line containing an isometric grid as its background image, such as the ones found here.</p>
+
+<p>If you have already been using Microsoft Visio for a while, you probably have notice that many downloadable shapes contains the words: 2D, 3D or isometric. 3D and isometric shapes are (mostly) the same when it comes to .vss files. They are the ones you will need in order to create three dimensional diagrams.</p>
+
+<p>For the rest, all you need to do is to find the appropriate grid size, and start drawing on the top of it:</p>
+
+<p><img src="/assets/visio.png" alt="Visio" /></p>
+
+<p>If keeping the grid is a problem, you can copy the created diagram by selecting all elements (CTRL+A) and pasting it into a blank template.</p>
+
+
+  
+    
+        <!-- Disqus comment section -->
+<div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://blog.devopsie.com/2019-08-20/notes-on-isometric-projection.html';
+    this.page.identifier = '/2019-08-20/notes-on-isometric-projection';
+  };
+
+  (function () {
+    var d = document, s = d.createElement('script');
+    s.src = 'https://devopsie.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by
+    Disqus.</a></noscript>
+    
+  
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/2019-08-26/gateway-load-balacing-protocol.html" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/2018-11-09/python-yum-security-updates.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+      <span>
+        &copy; <time datetime="2021-12-21 20:11:55 +0000">2021</time> Romero Galiza.
+      </span>
+    </footer>
+  </body>
+</html>

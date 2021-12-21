@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-122432016-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-122432016-1');
+</script>
+
+  
+
+  <title>
+    
+      Python: Yum Security Updates &middot; DevOpsie
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Fira+Mono:400,700'>
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+
+  <!-- RSS -->
+  <link type="application/atom+xml" rel="alternate" href="https://blog.devopsie.com/feed.xml" title="DevOpsie" />
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/">
+          <h2 class="nav-title">DevOpsie<span class="wired-dot">!</span></h2>
+        </a>
+        <ul>
+          <li><a href="/about">About</a></li>
+          <li><a href="/">Posts</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Romero Galiza
+    
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2018-11-09 00:00:00 +0000">November 09, 2018</time>
+    
+  </div>
+
+  <h1 class="post-title">Python: Yum Security Updates</h1>
+  <div class="post-line"></div>
+
+  <p>I have seen a lot of engineers attempting to come up with ways to deal with security reports, automated patching and so on. Every scenario requires tailored solutions driven by both technicalities such as operational systems and applications, and business requirements. This attempt (or simply “side note”) is specific for operational systems using YUM package manager (notably CentOS and RHEL).</p>
+
+<p>Since Yum has been written in Python, it provides us with modules to properly deal with its API. Although not very friendly, the official documentation is available <a href="http://yum.baseurl.org/api/">here</a>.</p>
+
+<p>At first the script below might seem redundant (you might be able to achieve the same result using the yum command line interface) and completely informal, but think of it as an example of how to use the YUM API. Imagine that instead of generating a pretty table as the output, you would like to serialize it within a JSON string and push it to a NoSQL database such as DynamoDB in order to implement a state machine allowing a certain business logic to act upon specific conditions.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">#!/usr/bin/env python
+</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span>
+<span class="kn">import</span> <span class="nn">yum</span>
+<span class="kn">from</span> <span class="nn">yum.update_md</span> <span class="kn">import</span> <span class="n">UpdateMetadata</span>
+<span class="kn">from</span> <span class="nn">prettytable</span> <span class="kn">import</span> <span class="n">PrettyTable</span>
+
+<span class="n">base</span> <span class="o">=</span> <span class="n">yum</span><span class="p">.</span><span class="n">YumBase</span><span class="p">()</span>
+<span class="n">base</span><span class="p">.</span><span class="n">setCacheDir</span><span class="p">()</span>
+
+<span class="n">enabled_repos</span> <span class="o">=</span> <span class="n">base</span><span class="p">.</span><span class="n">repos</span><span class="p">.</span><span class="n">listEnabled</span><span class="p">()</span>
+
+<span class="n">md_info</span> <span class="o">=</span> <span class="n">UpdateMetadata</span><span class="p">()</span>
+
+<span class="k">for</span> <span class="n">repo</span> <span class="ow">in</span> <span class="n">enabled_repos</span><span class="p">:</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">md_info</span><span class="p">.</span><span class="n">add</span><span class="p">(</span><span class="n">repo</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">yum</span><span class="p">.</span><span class="n">Errors</span><span class="p">.</span><span class="n">RepoMDError</span><span class="p">:</span>
+        <span class="k">continue</span>
+
+<span class="n">package_list</span> <span class="o">=</span> <span class="n">base</span><span class="p">.</span><span class="n">doPackageLists</span><span class="p">(</span>
+  <span class="n">pkgnarrow</span><span class="o">=</span><span class="s">'updates'</span><span class="p">,</span>
+  <span class="n">patterns</span><span class="o">=</span><span class="s">''</span><span class="p">,</span>
+  <span class="n">ignore_case</span><span class="o">=</span><span class="bp">True</span>
+<span class="p">)</span>
+
+<span class="n">table</span> <span class="o">=</span> <span class="n">PrettyTable</span><span class="p">(</span>
+  <span class="p">[</span><span class="s">'Severity'</span><span class="p">,</span> <span class="s">'Id'</span><span class="p">,</span> <span class="s">'Issued'</span><span class="p">,</span> <span class="s">'Package'</span><span class="p">,</span> <span class="s">'Version'</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="k">for</span> <span class="n">pkg</span> <span class="ow">in</span> <span class="n">package_list</span><span class="p">.</span><span class="n">updates</span><span class="p">:</span>
+    <span class="n">notice</span> <span class="o">=</span> <span class="n">md_info</span><span class="p">.</span><span class="n">get_notice</span><span class="p">(</span><span class="n">pkg</span><span class="p">.</span><span class="n">nvr</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">notice</span><span class="p">:</span>
+        <span class="n">md</span> <span class="o">=</span> <span class="n">notice</span><span class="p">.</span><span class="n">get_metadata</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">md</span><span class="p">[</span><span class="s">'type'</span><span class="p">]</span> <span class="o">==</span> <span class="s">'security'</span><span class="p">:</span>
+            <span class="n">table</span><span class="p">.</span><span class="n">add_row</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">md</span><span class="p">[</span><span class="s">'severity'</span><span class="p">],</span>
+                    <span class="n">md</span><span class="p">[</span><span class="s">'update_id'</span><span class="p">],</span>
+                    <span class="n">md</span><span class="p">[</span><span class="s">'issued'</span><span class="p">],</span>
+                    <span class="n">pkg</span><span class="p">.</span><span class="n">name</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">pkg</span><span class="p">.</span><span class="n">evr</span><span class="p">)</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+
+<span class="k">print</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
+</code></pre></div></div>
+
+
+  
+    
+        <!-- Disqus comment section -->
+<div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://blog.devopsie.com/2018-11-09/python-yum-security-updates.html';
+    this.page.identifier = '/2018-11-09/python-yum-security-updates';
+  };
+
+  (function () {
+    var d = document, s = d.createElement('script');
+    s.src = 'https://devopsie.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by
+    Disqus.</a></noscript>
+    
+  
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/2019-08-20/notes-on-isometric-projection.html" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/2018-07-31/cloudian-python-api-client.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+      <span>
+        &copy; <time datetime="2021-12-21 20:11:55 +0000">2021</time> Romero Galiza.
+      </span>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-122432016-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-122432016-1');
+</script>
+
+  
+
+  <title>
+    
+      AWS: API Gateway Cognito Authorizer &middot; DevOpsie
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Fira+Mono:400,700'>
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+
+  <!-- RSS -->
+  <link type="application/atom+xml" rel="alternate" href="https://blog.devopsie.com/feed.xml" title="DevOpsie" />
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/">
+          <h2 class="nav-title">DevOpsie<span class="wired-dot">!</span></h2>
+        </a>
+        <ul>
+          <li><a href="/about">About</a></li>
+          <li><a href="/">Posts</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Romero Galiza
+    
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2019-10-28 00:00:00 +0000">October 28, 2019</time>
+    
+  </div>
+
+  <h1 class="post-title">AWS: API Gateway Cognito Authorizer</h1>
+  <div class="post-line"></div>
+
+  <h2 id="scenario">Scenario</h2>
+
+<p>Imagine you want to <strong>build</strong> and <strong>expose</strong> a REST API on AWS. At this moment your API’s only requirement is to support a single resource (<code class="language-plaintext highlighter-rouge">domain.com/default/greetings</code>), and whenever this resource is called with a GET request, it should return “Hello”.</p>
+
+<h2 id="constraints">Constraints</h2>
+
+<p>What if you would like to <strong>protect</strong> your API resource from unauthorized users? What if instead of greetings you would like to expose specific data fetched from third-party backends or storage solutions. We can achieve this using a AWS Cognito <strong>authorizer</strong>.</p>
+
+<h2 id="solution">Solution</h2>
+
+<p>For testing purporses, let’s create a user (<code class="language-plaintext highlighter-rouge">butters@southpark.com</code>) in your Cognito User Pool, followed by a administrator triggered “sign up” confirmation:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Create user (sign up):</span>
+aws cognito-idp sign-up <span class="se">\</span>
+<span class="nt">--client-id</span> a11b22c33d44e55f66g77h88i99j <span class="se">\</span>
+<span class="nt">--username</span> butters@southpark.com <span class="se">\</span>
+<span class="nt">--password</span> S3cr3tP4ssw0rd <span class="se">\</span>
+<span class="nt">--region</span> eu-central-1 <span class="se">\</span>
+<span class="nt">--user-attributes</span> <span class="s1">'[
+    {"Name":"given_name","Value":"Butters"},
+    {"Name":"family_name","Value":"Scotch"},
+    {"Name":"email","Value":"butters@southpark.com"},
+    {"Name":"gender","Value":"Male"}
+]'</span>
+
+<span class="c"># Confirm sign up:</span>
+aws cognito-idp admin-confirm-sign-up <span class="nt">--user-pool-id</span> eu-central-x_xxxyyyzzz <span class="nt">--username</span> 58ccaeb4-0668-4361-97f2-b782f4dc00c1
+</code></pre></div></div>
+
+<p>You could rely directly on your application in order to authenticate, for this example, let’s simply use <code class="language-plaintext highlighter-rouge">curl</code>. To keep things simple and repetable, create a .json file (<code class="language-plaintext highlighter-rouge">aws-auth-data.json</code>) with the following structure, replacing values when needed:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+   </span><span class="nl">"AuthParameters"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+      </span><span class="nl">"USERNAME"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"butters@southpark.com"</span><span class="p">,</span><span class="w">
+      </span><span class="nl">"PASSWORD"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"S3cr3tP4ssw0rd"</span><span class="w">
+   </span><span class="p">},</span><span class="w">
+   </span><span class="nl">"AuthFlow"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"USER_PASSWORD_AUTH"</span><span class="p">,</span><span class="w">
+   </span><span class="nl">"ClientId"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"a11b22c33d44e55f66g77h88i99j"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p>More information about different <code class="language-plaintext highlighter-rouge">AuthFlow</code> can be found on this <a href="https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_InitiateAuth.html">page</a>.</p>
+
+<p>Putting it all together, we end up with the following authentication script (<code class="language-plaintext highlighter-rouge">fetch_id_token.sh</code>):</p>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">#!/bin/bash</span>
+curl <span class="nt">-s</span> <span class="nt">-X</span> POST <span class="se">\</span>
+    <span class="nt">--data</span> @aws-auth-data.json <span class="se">\</span>
+        <span class="nt">-H</span> <span class="s1">'X-Amz-Target: AWSCognitoIdentityProviderService.InitiateAuth'</span> <span class="se">\</span>
+        <span class="nt">-H</span> <span class="s1">'Content-Type: application/x-amz-json-1.1'</span> <span class="se">\</span>
+        https://cognito-idp.eu-central-1.amazonaws.com | jq .AuthenticationResult.IdToken | <span class="nb">sed</span> <span class="s1">'s/\"//g'</span>
+</code></pre></div></div>
+
+<p>The above command will call <code class="language-plaintext highlighter-rouge">AWSCognitoIdentityProviderService</code> API on the <code class="language-plaintext highlighter-rouge">InitiateAuth</code> resouce, this expects a request content type <code class="language-plaintext highlighter-rouge">x-amz-json-1.1</code> (provided with <code class="language-plaintext highlighter-rouge">aws-auth-data.json</code>). A successful authentication will return:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="nl">"AuthenticationResult"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+        </span><span class="nl">"AccessToken"</span><span class="p">:</span><span class="w"> </span><span class="s2">"FVytONjAyMnpvVmtYaFR...FVytONjAyMnpvVmtYaFR"</span><span class="p">,</span><span class="w">
+        </span><span class="nl">"IdToken"</span><span class="p">:</span><span class="w"> </span><span class="s2">"NhaTY0Z0FjMFNhaTY00F...NhaTY0Z0FjMFNhaTY00F"</span><span class="p">,</span><span class="w">
+        </span><span class="nl">"RefreshToken"</span><span class="p">:</span><span class="w"> </span><span class="s2">"eyJjdHkiOiJKV1QiLCJb...eyJjdHkiOiJKV1QiLCJb"</span><span class="p">,</span><span class="w">
+        </span><span class="nl">"TokenType"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Bearer"</span><span class="p">,</span><span class="w">
+        </span><span class="nl">"ExpiresIn"</span><span class="p">:</span><span class="w"> </span><span class="mi">3600</span><span class="w">
+    </span><span class="p">},</span><span class="w">
+    </span><span class="nl">"ChallengeParameters"</span><span class="p">:</span><span class="w"> </span><span class="p">{}</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p>Each of these tokens follows the JWT standard and can be validated <a href="https://jwt.io/">here</a>. You should also verify the claim on your beckend before further processing, like discussed <a href="https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-tokens-verifying-a-jwt.html">here</a>.</p>
+
+<p>Our script job is to parse the blob above, retrieving the only value we care about for the sake of this example. That would be the <code class="language-plaintext highlighter-rouge">IdToken</code>. We could use it as such:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-i</span> <span class="nt">-s</span> <span class="nt">-X</span> GET https://example.execute-api.eu-central-1.amazonaws.com/default/greetings <span class="nt">-H</span> <span class="s2">"Authorization: </span><span class="si">$(</span>./fetch_id_token.sh<span class="si">)</span><span class="s2">"</span>
+</code></pre></div></div>
+
+
+  
+    
+        <!-- Disqus comment section -->
+<div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://blog.devopsie.com/2019-10-28/aws-api-gateway-cognito-authorizer.html';
+    this.page.identifier = '/2019-10-28/aws-api-gateway-cognito-authorizer';
+  };
+
+  (function () {
+    var d = document, s = d.createElement('script');
+    s.src = 'https://devopsie.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by
+    Disqus.</a></noscript>
+    
+  
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/2019-10-29/clair-container-analysis.html" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/2019-10-02/cloudstack-site-to-site-vpn.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+      <span>
+        &copy; <time datetime="2021-12-21 20:11:55 +0000">2021</time> Romero Galiza.
+      </span>
+    </footer>
+  </body>
+</html>

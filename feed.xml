@@ -1,0 +1,977 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.2.1">Jekyll</generator><link href="https://blog.devopsie.com/feed.xml" rel="self" type="application/atom+xml" /><link href="https://blog.devopsie.com/" rel="alternate" type="text/html" /><updated>2021-12-21T20:11:55+00:00</updated><id>https://blog.devopsie.com/feed.xml</id><title type="html">DevOpsie</title><subtitle>Collection of articles written by Romero Galiza</subtitle><author><name>Romero Galiza</name><email>romero@devopsie.com</email></author><entry><title type="html">Infrastructure as code with Terraform CDK</title><link href="https://blog.devopsie.com/2021-10-18/terraform-cdk.html" rel="alternate" type="text/html" title="Infrastructure as code with Terraform CDK" /><published>2021-10-18T00:00:00+00:00</published><updated>2021-10-18T00:00:00+00:00</updated><id>https://blog.devopsie.com/2021-10-18/terraform-cdk</id><content type="html" xml:base="https://blog.devopsie.com/2021-10-18/terraform-cdk.html">&lt;h2 id=&quot;why-infrastructure-as-code&quot;&gt;Why infrastructure as code?&lt;/h2&gt;
+
+&lt;p&gt;As a response to the fast changing pace of nowadays market, development teams
+should spend less time on routine drudgery, but even with modern tools, the ease
+of provisioning new infrastructure leads to an ever-growing portfolio of
+systems, which often greatly differ in implementation, turning integration into
+unnecessary time consuming puzzles.&lt;/p&gt;
+
+&lt;p&gt;According to Kief Morris (2016), infrastructure as code comes as an approach to
+automate infrastructure based on practises from software development,
+emphasizing idempotent, repeatable routines for provisioning and changing
+systems and their configuration.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;em&gt;“The premise is that modern tooling can treat infrastructure as if it were&lt;/em&gt;
+&lt;em&gt;software and data.” (Kief Morris, 2016)&lt;/em&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;problem-description&quot;&gt;Problem description&lt;/h2&gt;
+
+&lt;p&gt;With the advancements and increasing popularity of cloud providers, software
+development teams are now closer to infrastructure than ever, however, it is
+still somewhat unrealistic to expect software engineers to fully understand all
+resources and architectural caveats that surrounds their application.&lt;/p&gt;
+
+&lt;p&gt;A handful of technologies have been developed to aid this task, such as
+Terraform and Helm.&lt;/p&gt;
+
+&lt;p&gt;Terraform builds an abstraction layer on the top of a variety of providers APIs,
+such as AWS, GCP, Azure, Vault, Kubernetes, and so on. Still, a deep
+understanding of these APIs is necessary. As a software engineer you still need
+to make decisions on how to use their resources, which is ultimately followed by
+the decision on how to organize and structure your Terraform code base, which is
+then finally followed by the decision on how (and when) to apply such changes
+(this last decision often implemented in continuous integration and delivery
+routines).&lt;/p&gt;
+
+&lt;p&gt;This collection of decisions can be overwhelming, specially when working with
+architectures such as microservices. Chris Richardson (2019) discusses the
+importance of service decomposition and modularity in microservices, where
+applications are loosely coupled and communicate only via APIs, leading to a
+leaner code base. While true, this normally leads to an undesired infrastructure
+overhead.&lt;/p&gt;
+
+&lt;p&gt;A microservice has similar infrastructure requirement to a monolith application,
+it still needs data persistency, networking, security and observability.&lt;/p&gt;
+
+&lt;h2 id=&quot;decoupling-strategy&quot;&gt;Decoupling strategy&lt;/h2&gt;
+
+&lt;p&gt;In order to decouple infrastructure specification from application the following
+will be assumed:&lt;/p&gt;
+
+&lt;p&gt;Each application (or service) is contained in its own versioned repository and
+should be aware, &lt;strong&gt;at an abstract level&lt;/strong&gt;, what its own infrastructure
+components and requirements are.&lt;/p&gt;
+
+&lt;p&gt;At this point, a language (or simply contract) where such components and
+requirements can be universally described is needed. One way to approach this
+is through a simplistic &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.json&lt;/code&gt; manifest, for example:&lt;/p&gt;
+
+&lt;div class=&quot;language-json highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;infrastructureComponents&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;componentType&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;database&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;example&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;properties&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;diskSizeGB&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;engine&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+          &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;postgres&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+          &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;version&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;12&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;From the software engineer perspective, the example above removes the need for
+understanding how or where this abstract “database” will be concretized.&lt;/p&gt;
+
+&lt;p&gt;It is clear that resources as complex as databases can posses a massive
+amount of properties, therefore, this language or contract must come with a set
+of well documented default values.&lt;/p&gt;
+
+&lt;p&gt;The team itself must determine what the defaults are. For example, these values
+could be taken as “the recommended values for a minimal workload”, where “a
+minimal workload” consists of X, Y and Z.&lt;/p&gt;
+
+&lt;p&gt;With the above sorted out, we still need a tool to digest such manifests.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;While Terraform and alternatives like AWS CloudFormation succeeded in their
+mission, which is to codify cloud APIs into declarative configuration files,
+keeping the infrastructure code base “DRY” is perhaps one of the biggest
+challanges to this day, the market responded to this limitation with solutions
+like Terragrunt, yet, it doesn’t feel quite right.&lt;/p&gt;
+
+  &lt;p&gt;CDK stands for cloud development kit. In practise, it is a SDK for cloud
+resources management. This pattern was initially envisioned by AWS, with its
+first public appearance dating back to 2019 during AWS re:Invent, in Las Vegas.&lt;/p&gt;
+
+  &lt;p&gt;Soon enough, major initiatives (like Hashicorp Terraform) started to adopt this
+pattern as an alternative to &lt;strong&gt;declarative approaches&lt;/strong&gt; (where we describe an
+intended goal rather than the steps to reach that goal).&lt;/p&gt;
+
+  &lt;p&gt;Allowing engineers to pragmatically build and maintain cloud resources using
+well-known programming languages such as TypeScript quickly brought CDKs to the
+spotlight.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;digesting-manifests&quot;&gt;Digesting manifests&lt;/h2&gt;
+
+&lt;p&gt;You can rely on Terraform CDK to pragmatically create and orchestrate resources
+across different providers based on such simplistic manifest file, which is the
+basis for an unified abstraction layer to a set of reusable resources common to
+a particular domain (or team).&lt;/p&gt;
+
+&lt;p&gt;Take the the proposed workflow, for example:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;A sofware engineer provides a list with the resources required by an
+application named ABC. As previously discussed, these resources must be
+defined in an abstract manner, like a “database”, a “message queue topic”, or
+a “secret”.&lt;/li&gt;
+  &lt;li&gt;An automated process takes the list of resources as an input and synthetizes
+an opinionated implementation. For example, this process must know what and
+how to build a “database” based on minimal user input.&lt;/li&gt;
+  &lt;li&gt;Later on, a second software engineer provides a list with the resources they
+need for an application named XYZ, again in an abstract manner.&lt;/li&gt;
+  &lt;li&gt;The same automated process from step 2 builds the requested set of resources
+with the same opinionated implementation.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Updating resouces works in the same way. Terraform CDK still relies on
+plain Terraform. It synthetizes a plan based on controlled flow written in a
+given programming language.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;h3 id=&quot;convention-over-configuration&quot;&gt;Convention over configuration&lt;/h3&gt;
+
+  &lt;p&gt;The aforementioned resources convey an opinion on how application and
+infrastructure components should look and behave. Various settings are taken as
+“convention” rather than “configuration”, which decreases the amount of
+decisions a software engineer has to make.&lt;/p&gt;
+
+  &lt;p&gt;This could imply less flexibility, but it enforces a baseline standard from a
+single, programable, and versionable source.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;gambling&quot;&gt;Gambling&lt;/h2&gt;
+
+&lt;p&gt;The Terraform CDK project is still in its early stages. Committing all your
+automation efforts into this single solution is still a gamble and its risks
+must be carefully considered when off-loading infrastructure responsibility from
+the daily software engineering tasks.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;A conservative implementation that can help mitigating some of the risks is to
+still rely on plain Terraform modules as illustrated below.&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/cdk.svg&quot; alt=&quot;Conservative architecture&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;In this pattern the “business logic” is decoupled from Terraform Modules.
+Modules are left to answer the question of “what” [needs to be created or
+modified], with CDK answering the question of “how” [through control flows].&lt;/p&gt;
+
+&lt;h2 id=&quot;final-thoughts&quot;&gt;Final thoughts&lt;/h2&gt;
+
+&lt;p&gt;Building an abstraction layer on the top of Terraform can help simplifying
+operations, however, at this point in time it is still early to declare this
+approach successful.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Personally I would rather be an early adopter and fail fast if necessary&lt;/strong&gt;, so
+I will continue experimenting with CDK, and hopefully my efforts will yield
+interesting articles.&lt;/p&gt;</content><author><name>Romero Galiza</name></author><summary type="html">Why infrastructure as code? As a response to the fast changing pace of nowadays market, development teams should spend less time on routine drudgery, but even with modern tools, the ease of provisioning new infrastructure leads to an ever-growing portfolio of systems, which often greatly differ in implementation, turning integration into unnecessary time consuming puzzles. According to Kief Morris (2016), infrastructure as code comes as an approach to automate infrastructure based on practises from software development, emphasizing idempotent, repeatable routines for provisioning and changing systems and their configuration. “The premise is that modern tooling can treat infrastructure as if it were software and data.” (Kief Morris, 2016) Problem description With the advancements and increasing popularity of cloud providers, software development teams are now closer to infrastructure than ever, however, it is still somewhat unrealistic to expect software engineers to fully understand all resources and architectural caveats that surrounds their application. A handful of technologies have been developed to aid this task, such as Terraform and Helm. Terraform builds an abstraction layer on the top of a variety of providers APIs, such as AWS, GCP, Azure, Vault, Kubernetes, and so on. Still, a deep understanding of these APIs is necessary. As a software engineer you still need to make decisions on how to use their resources, which is ultimately followed by the decision on how to organize and structure your Terraform code base, which is then finally followed by the decision on how (and when) to apply such changes (this last decision often implemented in continuous integration and delivery routines). This collection of decisions can be overwhelming, specially when working with architectures such as microservices. Chris Richardson (2019) discusses the importance of service decomposition and modularity in microservices, where applications are loosely coupled and communicate only via APIs, leading to a leaner code base. While true, this normally leads to an undesired infrastructure overhead. A microservice has similar infrastructure requirement to a monolith application, it still needs data persistency, networking, security and observability. Decoupling strategy In order to decouple infrastructure specification from application the following will be assumed: Each application (or service) is contained in its own versioned repository and should be aware, at an abstract level, what its own infrastructure components and requirements are. At this point, a language (or simply contract) where such components and requirements can be universally described is needed. One way to approach this is through a simplistic .json manifest, for example: { &quot;infrastructureComponents&quot;: [ { &quot;componentType&quot;: &quot;database&quot;, &quot;name&quot;: &quot;example&quot;, &quot;properties&quot;: { &quot;diskSizeGB&quot;: 20, &quot;engine&quot;: { &quot;type&quot;: &quot;postgres&quot;, &quot;version&quot;: &quot;12&quot; } } } ] } From the software engineer perspective, the example above removes the need for understanding how or where this abstract “database” will be concretized. It is clear that resources as complex as databases can posses a massive amount of properties, therefore, this language or contract must come with a set of well documented default values. The team itself must determine what the defaults are. For example, these values could be taken as “the recommended values for a minimal workload”, where “a minimal workload” consists of X, Y and Z. With the above sorted out, we still need a tool to digest such manifests. While Terraform and alternatives like AWS CloudFormation succeeded in their mission, which is to codify cloud APIs into declarative configuration files, keeping the infrastructure code base “DRY” is perhaps one of the biggest challanges to this day, the market responded to this limitation with solutions like Terragrunt, yet, it doesn’t feel quite right. CDK stands for cloud development kit. In practise, it is a SDK for cloud resources management. This pattern was initially envisioned by AWS, with its first public appearance dating back to 2019 during AWS re:Invent, in Las Vegas. Soon enough, major initiatives (like Hashicorp Terraform) started to adopt this pattern as an alternative to declarative approaches (where we describe an intended goal rather than the steps to reach that goal). Allowing engineers to pragmatically build and maintain cloud resources using well-known programming languages such as TypeScript quickly brought CDKs to the spotlight. Digesting manifests You can rely on Terraform CDK to pragmatically create and orchestrate resources across different providers based on such simplistic manifest file, which is the basis for an unified abstraction layer to a set of reusable resources common to a particular domain (or team). Take the the proposed workflow, for example: A sofware engineer provides a list with the resources required by an application named ABC. As previously discussed, these resources must be defined in an abstract manner, like a “database”, a “message queue topic”, or a “secret”. An automated process takes the list of resources as an input and synthetizes an opinionated implementation. For example, this process must know what and how to build a “database” based on minimal user input. Later on, a second software engineer provides a list with the resources they need for an application named XYZ, again in an abstract manner. The same automated process from step 2 builds the requested set of resources with the same opinionated implementation. Updating resouces works in the same way. Terraform CDK still relies on plain Terraform. It synthetizes a plan based on controlled flow written in a given programming language. Convention over configuration The aforementioned resources convey an opinion on how application and infrastructure components should look and behave. Various settings are taken as “convention” rather than “configuration”, which decreases the amount of decisions a software engineer has to make. This could imply less flexibility, but it enforces a baseline standard from a single, programable, and versionable source. Gambling The Terraform CDK project is still in its early stages. Committing all your automation efforts into this single solution is still a gamble and its risks must be carefully considered when off-loading infrastructure responsibility from the daily software engineering tasks. A conservative implementation that can help mitigating some of the risks is to still rely on plain Terraform modules as illustrated below. In this pattern the “business logic” is decoupled from Terraform Modules. Modules are left to answer the question of “what” [needs to be created or modified], with CDK answering the question of “how” [through control flows]. Final thoughts Building an abstraction layer on the top of Terraform can help simplifying operations, however, at this point in time it is still early to declare this approach successful. Personally I would rather be an early adopter and fail fast if necessary, so I will continue experimenting with CDK, and hopefully my efforts will yield interesting articles.</summary></entry><entry><title type="html">Static Container Scanning with Clair and Klar (or Trivy)</title><link href="https://blog.devopsie.com/2019-10-29/clair-container-analysis.html" rel="alternate" type="text/html" title="Static Container Scanning with Clair and Klar (or Trivy)" /><published>2019-10-29T00:00:00+00:00</published><updated>2019-10-29T00:00:00+00:00</updated><id>https://blog.devopsie.com/2019-10-29/clair-container-analysis</id><content type="html" xml:base="https://blog.devopsie.com/2019-10-29/clair-container-analysis.html">&lt;h2 id=&quot;introduction&quot;&gt;Introduction&lt;/h2&gt;
+
+&lt;p&gt;Recently I came across this eye-opening &lt;a href=&quot;https://aws.amazon.com/blogs/containers/amazon-ecr-native-container-image-scanning/&quot;&gt;post&lt;/a&gt; about native security scanning in Amazon’s Elastic Container Registry (ECR), and inspired by the architecture proposed by the authors I decided to document my pursuit on approaching a similar problem using an a set of open source solution. At that point I had no insight on what the community had to offer.&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;When and how to scan images against common vulnerabilities using open source tooling?&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;On a personal note, I believe this question (or perhaps idea) might be biased by how we used to interact with less abstract resources, such as virtual machines. Vulnerability scanning for containerized applications certainly needs a fresh approach.&lt;/p&gt;
+
+&lt;h2 id=&quot;static-scanning&quot;&gt;Static Scanning&lt;/h2&gt;
+
+&lt;p&gt;Static scanning refers to the act of checking an image against common security vulnerabilities before letting it hit production. Just like the authors of the Amazon’s article, I will approach my problem from this front. To achieve my goal I will also be using &lt;a href=&quot;https://github.com/coreos/clair&quot;&gt;Clair&lt;/a&gt;, an open source project for the static analysis of vulnerabilities in application containers (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;appc&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;docker&lt;/code&gt;).&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/registry.png&quot; alt=&quot;Scanning&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;usage&quot;&gt;Usage&lt;/h2&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;For more details on how to install Clair, please refer to their &lt;a href=&quot;https://github.com/coreos/clair/blob/master/Documentation/running-clair.md&quot;&gt;official docs&lt;/a&gt;.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Think of Clair as an engine rather than an end user product. Once Clair is up and running, it will (after a while) aggregate information about vulnerabilities from &lt;a href=&quot;https://github.com/coreos/clair/blob/master/Documentation/drivers-and-data-sources.md&quot;&gt;different sources&lt;/a&gt; and expose an API which you (or an automated process) can interact with.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/clair.png&quot; alt=&quot;Clair&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Dealing with Clair’s API directly can be rather time consuming, instead I decided to check out &lt;a href=&quot;https://github.com/optiopay/klar&quot;&gt;Klar&lt;/a&gt;, a command line tool to facilitate analysis of images stored in a private or public Docker registry using Clair. A command line API client. Klar is designed to be used as an integration tool, it relies on &lt;a href=&quot;https://github.com/optiopay/klar#usage&quot;&gt;enviroment variables&lt;/a&gt;, which you can easily tame in any CI pipeline solution out there. Klar can be installed from &lt;a href=&quot;https://github.com/optiopay/klar/releases&quot;&gt;binaries or compiled from source&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;To test it locally:&lt;/p&gt;
+
+&lt;div class=&quot;language-console highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;go&quot;&gt;CLAIR_ADDR=http://your-clair-endpoint:6060 CLAIR_OUTPUT=Negligible JSON_OUTPUT=true CLAIR_THRESHOLD=10 klar ubuntu:latest
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Klar follows the syntax &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;$ klar &amp;lt;image&amp;gt;&lt;/code&gt;, whereas &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;&amp;lt;image&amp;gt;&lt;/code&gt; should match the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;REPOSITORY&lt;/code&gt; string you see in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;docker images&lt;/code&gt; command output:&lt;/p&gt;
+
+&lt;div class=&quot;language-console highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;$&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;docker images
+&lt;span class=&quot;go&quot;&gt;REPOSITORY                 TAG                 IMAGE ID            CREATED             SIZE
+quay.io/coreos/clair-git   latest              565aa423300b        7 months ago        423MB
+postgres                   latest              599272bf538f        7 months ago        287MB
+
+CLAIR_ADDR=http://your-clair-endpoint:6060 CLAIR_OUTPUT=Negligible JSON_OUTPUT=true CLAIR_THRESHOLD=10 klar quay.io/coreos/clair-git
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The following result style is expected when using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;JSON_OUTPUT=true&lt;/code&gt;:&lt;/p&gt;
+
+&lt;div class=&quot;language-json highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;LayerCount&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;Vulnerabilities&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;Critical&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;Name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;RHSA-2018:3347&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;NamespaceName&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;centos:7&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;Description&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;The python-paramiko package provides a Python module that implements the SSH2 protocol for encrypted and authenticated connections to remote machines. Unlike SSL, the SSH2 protocol does not require hierarchical certificates signed by a powerful central authority. The protocol also includes the ability to open arbitrary channels to remote services across an encrypted tunnel. Security Fix(es): * python-paramiko: Authentication bypass in auth_handler.py (CVE-2018-1000805) For more details about the security issue(s), including the impact, a CVSS score, and other related information, refer to the CVE page(s) listed in the References section.&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;Link&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;https://access.redhat.com/errata/RHSA-2018:3347&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;Severity&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;Critical&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;FixedBy&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;0:2.1.1-9.el7&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;FeatureName&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;python-paramiko&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;FeatureVersion&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;2.1.1-4.el7&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;High&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;Name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;RHSA-2019:0710&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;NamespaceName&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;centos:7&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;Description&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;Python is an interpreted, interactive, object-oriented programming language, which includes modules, classes, exceptions, very high level dynamic data types and dynamic typing. Python supports interfaces to many system calls and libraries, as well as to various windowing systems. Security Fix(es): * python: Information Disclosure due to urlsplit improper NFKC normalization (CVE-2019-9636) For more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;Link&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;https://access.redhat.com/errata/RHSA-2019:0710&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;Severity&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;High&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;FixedBy&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;0:2.7.5-77.el7_6&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;FeatureName&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;python&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;FeatureVersion&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;2.7.5-69.el7_5&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;Name&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;RHSA-2019:1294&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;NamespaceName&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;centos:7&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;Description&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;The Berkeley Internet Name Domain (BIND) is an implementation of the Domain Name System (DNS) protocols. BIND includes a DNS server (named); a resolver library (routines for applications to use when interfacing with DNS); and tools for verifying that the DNS server is operating correctly. Security Fix(es): * bind: Limiting simultaneous TCP clients is ineffective (CVE-2018-5743) For more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;Link&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;https://access.redhat.com/errata/RHSA-2019:1294&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;Severity&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;High&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;FixedBy&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;32:9.9.4-74.el7_6.1&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;FeatureName&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;bind-license&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;FeatureVersion&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;32:9.9.4-61.el7_5.1&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+  &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;using-clair-api-directly&quot;&gt;Using Clair API directly&lt;/h2&gt;
+
+&lt;p&gt;As explained, under the hood Klar will be contacting Clair API, but if you want to deal with it directly (implementing your own client, for example) you could find all information you need under their official API &lt;a href=&quot;https://coreos.com/clair/docs/2.0.1/api_v1.html&quot;&gt;documentation&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;To play around with it and run a scan on an image, you have to upload the image layer you would like to verify from your registry to Clair.&lt;/p&gt;
+
+&lt;div class=&quot;language-console highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;go&quot;&gt;curl -s -X POST http://your-clair-endpoint:6060/v1/layers --data @clair.json
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The contents of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;clair.json&lt;/code&gt; are:&lt;/p&gt;
+
+&lt;div class=&quot;language-text highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;{
+  &quot;Layer&quot;: {
+    &quot;Name&quot;: &quot;sha256:123123773760869c33123123d1e5c4a91b15c5854987331459123123&quot;,
+    &quot;Path&quot;: &quot;https://your-registry/v2/docker/some-image/blobs/sha256:123123773760869c33123123d1e5c4a91b15c5854987331459123123&quot;,
+    &quot;Headers&quot;: {
+      &quot;Authorization&quot;: &quot;Basic 4Asdcc3ZjXHausdHAbns123TphUUNhaG4DASdw4eJQdjNRaAsd34J0=&quot;
+    },
+    &quot;Format&quot;: &quot;Docker&quot;
+  }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Clair only seems to care about the digest (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Layer.Name&lt;/code&gt;) and an accessible path for tar file (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Layer.Path&lt;/code&gt;) which represents the delta of that layer (the actual contents of that layer in a file system). These values can be retrieved from the registry your image is in.&lt;/p&gt;
+
+&lt;p&gt;Without Klar, you will need to verify all relevant layers manually, taking into account that empty layers generated by commands from Dockerfile like &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;CMD&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;EXPOSE&lt;/code&gt; etc. never modify the content of the image and will always end up with the same digest:&lt;/p&gt;
+
+&lt;div class=&quot;language-text highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;These can be ignored.&lt;/p&gt;
+
+&lt;p&gt;Again, metadata about fsLayers and their respective digest can be obtained from your registry manifests, for example:&lt;/p&gt;
+
+&lt;div class=&quot;language-console highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;go&quot;&gt;curl -s -X GET https://your-registry/v2/docker/some-image/manifests/latest
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Once you feed clair with the layers you want to analyse, you will be able to retrieve scan results:&lt;/p&gt;
+
+&lt;div class=&quot;language-console highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;go&quot;&gt;curl -s -X GET  http://your-clair-endpoint:6060/v1/layers/sha256:123123773760869c33123123d1e5c4a91b15c5854987331459123123?features&amp;amp;vulnerabilities
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The above will return a json object containing all vulnerabilities. Tedious process to go through manually.&lt;/p&gt;
+
+&lt;h2 id=&quot;alternative-trivy&quot;&gt;Alternative: Trivy&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/aquasecurity/trivy&quot;&gt;Trivy&lt;/a&gt; is young but promising project, first found in Github about 6 months prior to the time I wrote this document. Their &lt;a href=&quot;https://github.com/aquasecurity/trivy/releases/tag/v0.1.7&quot;&gt;latest release&lt;/a&gt; contain binaries for different architectures, and it differs from Clair+Klar in the sense that it doesn’t rely on any self-maintained database.&lt;/p&gt;
+
+&lt;p&gt;Ironically I decided to run a scan using Trivy on Clair’s official docker image from my own laptop (running macOS Mojave), here’s the result you might expect (all settings default):&lt;/p&gt;
+
+&lt;div class=&quot;language-console highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;$&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;trivy quay.io/coreos/clair
+&lt;span class=&quot;go&quot;&gt;1945-08-06T08:15:00.000+0100	INFO	Updating vulnerability database...
+1945-08-06T08:15:10.000+0100	INFO	Updating ubuntu data...
+ 31675 / 31675 [================================================] 100.00% 15s
+1945-08-06T08:15:25.000+0100	INFO	Updating amazon data...
+ 1445 / 1445 [================================================] 100.00% 2s
+1945-08-06T08:15:27.000+0100	INFO	Updating nvd data...
+ 131396 / 131396 [================================================] 100.00% 1m31s
+1945-08-06T08:16:58.000+0100	INFO	Updating alpine data...
+ 14000 / 14000 [================================================] 100.00% 4s
+1945-08-06T08:17:02.000+0100	INFO	Updating redhat data...
+ 20675 / 20675 [================================================] 100.00% 11s
+1945-08-06T08:17:13.000+0100	INFO	Updating debian data...
+ 29629 / 29629 [================================================] 100.00% 10s
+1945-08-06T08:17:23.000+0100	INFO	Updating debian-oval data...
+ 63099 / 63099 [================================================] 100.00% 30s
+1945-08-06T08:15:51.000+0100	INFO	Detecting Alpine vulnerabilities...
+
+quay.io/coreos/clair (alpine 3.9.0)
+===================================
+Total: 35 (UNKNOWN: 1, LOW: 1, MEDIUM: 24, HIGH: 8, CRITICAL: 1)
+
++------------+------------------+----------+-------------------+---------------+-----------------------------------+
+|  LIBRARY   | VULNERABILITY ID | SEVERITY | INSTALLED VERSION | FIXED VERSION |               TITLE               |
++------------+------------------+----------+-------------------+---------------+-----------------------------------+
+| bzip2      | CVE-2019-12900   | HIGH     | 1.0.6-r6          | 1.0.6-r7      | bzip2: out-of-bounds write in     |
+|            |                  |          |                   |               | function BZ2_decompress           |
++------------+------------------+          +-------------------+---------------+-----------------------------------+
+| curl       | CVE-2019-5481    |          | 7.64.0-r1         | 7.64.0-r3     | curl: double free due to          |
+|            |                  |          |                   |               | subsequent call of realloc()      |
++            +------------------+          +                   +               +-----------------------------------+
+|            | CVE-2019-5482    |          |                   |               | curl: heap buffer overflow in     |
+|            |                  |          |                   |               | function tftp_receive_packet()    |
++            +------------------+----------+                   +---------------+-----------------------------------+
+|            | CVE-2019-5435    | MEDIUM   |                   | 7.64.0-r2     | curl: Integer overflows in        |
+|            |                  |          |                   |               | curl_url_set() function           |
++            +------------------+          +                   +               +-----------------------------------+
+|            | CVE-2019-5436    |          |                   |               | curl: TFTP receive                |
+|            |                  |          |                   |               | heap buffer overflow in           |
+|            |                  |          |                   |               | tftp_receive_packet() function    |
++------------+------------------+----------+-------------------+---------------+-----------------------------------+
+| expat      | CVE-2018-20843   | HIGH     | 2.2.6-r0          | 2.2.7-r0      | expat: large number of colons     |
+|            |                  |          |                   |               | in input makes parser consume     |
+|            |                  |          |                   |               | high amount...                    |
++            +------------------+----------+                   +---------------+-----------------------------------+
+|            | CVE-2019-15903   | MEDIUM   |                   | 2.2.7-r1      | expat: heap-based buffer          |
+|            |                  |          |                   |               | over-read via crafted XML         |
+|            |                  |          |                   |               | input                             |
++------------+------------------+          +-------------------+---------------+-----------------------------------+
+| file       | CVE-2019-8904    |          | 5.35-r0           | 5.36-r0       | file: stack-based buffer          |
+|            |                  |          |                   |               | over-read in do_bid_note in       |
+|            |                  |          |                   |               | readelf.c                         |
++            +------------------+          +                   +               +-----------------------------------+
+|            | CVE-2019-8905    |          |                   |               | file: stack-based buffer          |
+|            |                  |          |                   |               | over-read in do_core_note in      |
+|            |                  |          |                   |               | readelf.c                         |
++            +------------------+          +                   +               +-----------------------------------+
+|            | CVE-2019-8906    |          |                   |               | file: out-of-bounds read in       |
+|            |                  |          |                   |               | do_core_note in readelf.c         |
++            +------------------+          +                   +               +-----------------------------------+
+|            | CVE-2019-8907    |          |                   |               | file: do_core_note in             |
+|            |                  |          |                   |               | readelf.c allows remote           |
+|            |                  |          |                   |               | attackers to cause a denial       |
+|            |                  |          |                   |               | of...                             |
++            +------------------+----------+                   +---------------+-----------------------------------+
+|            | CVE-2019-19218   | UNKNOWN  |                   | 5.36-r1       |                                   |
++------------+------------------+----------+-------------------+---------------+-----------------------------------+
+| libarchive | CVE-2017-14501   | MEDIUM   | 3.3.2-r4          | 3.3.3-r0      | libarchive: Out-of-bounds read    |
+|            |                  |          |                   |               | in parse_file_info                |
++            +------------------+          +                   +               +-----------------------------------+
+|            | CVE-2017-14502   |          |                   |               | libarchive: Off-by-one error      |
+|            |                  |          |                   |               | in the read_header function       |
++            +------------------+          +                   +               +-----------------------------------+
+|            | CVE-2017-14503   |          |                   |               | libarchive: Out-of-bounds read    |
+|            |                  |          |                   |               | in lha_read_data_none             |
++            +------------------+          +                   +---------------+-----------------------------------+
+|            | CVE-2019-18408   |          |                   | 3.3.3-r1      | archive_read_format_rar_read_data |
+|            |                  |          |                   |               | in                                |
+|            |                  |          |                   |               | archive_read_support_format_rar.c |
+|            |                  |          |                   |               | in libarchive before 3.4.0 has a  |
+|            |                  |          |                   |               | use-after-free in a...            |
++------------+------------------+----------+-------------------+---------------+-----------------------------------+
+| libssh2    | CVE-2019-3855    | CRITICAL | 1.8.0-r4          | 1.8.1-r0      | libssh2: Integer overflow in      |
+|            |                  |          |                   |               | transport read resulting in       |
+|            |                  |          |                   |               | out of bounds write...            |
++            +------------------+----------+                   +               +-----------------------------------+
+|            | CVE-2019-3856    | MEDIUM   |                   |               | libssh2: Integer overflow in      |
+|            |                  |          |                   |               | keyboard interactive handling     |
+|            |                  |          |                   |               | resulting in out of bounds...     |
++            +------------------+          +                   +               +-----------------------------------+
+|            | CVE-2019-3857    |          |                   |               | libssh2: Integer overflow in      |
+|            |                  |          |                   |               | SSH packet processing channel     |
+|            |                  |          |                   |               | resulting in out of...            |
++            +------------------+          +                   +               +-----------------------------------+
+|            | CVE-2019-3858    |          |                   |               | libssh2: Zero-byte allocation     |
+|            |                  |          |                   |               | with a specially crafted SFTP     |
+|            |                  |          |                   |               | packed leading to an...           |
++            +------------------+          +                   +               +-----------------------------------+
+|            | CVE-2019-3859    |          |                   |               | libssh2: Unchecked use of         |
+|            |                  |          |                   |               | _libssh2_packet_require and       |
+|            |                  |          |                   |               | _libssh2_packet_requirev          |
+|            |                  |          |                   |               | resulting in out-of-bounds        |
+|            |                  |          |                   |               | read                              |
++            +------------------+          +                   +               +-----------------------------------+
+|            | CVE-2019-3860    |          |                   |               | libssh2: Out-of-bounds reads      |
+|            |                  |          |                   |               | with specially crafted SFTP       |
+|            |                  |          |                   |               | packets                           |
++            +------------------+          +                   +               +-----------------------------------+
+|            | CVE-2019-3861    |          |                   |               | libssh2: Out-of-bounds reads      |
+|            |                  |          |                   |               | with specially crafted SSH        |
+|            |                  |          |                   |               | packets                           |
++            +------------------+          +                   +               +-----------------------------------+
+|            | CVE-2019-3862    |          |                   |               | libssh2: Out-of-bounds memory     |
+|            |                  |          |                   |               | comparison with specially         |
+|            |                  |          |                   |               | crafted message channel           |
+|            |                  |          |                   |               | request                           |
++            +------------------+          +                   +               +-----------------------------------+
+|            | CVE-2019-3863    |          |                   |               | libssh2: Integer overflow         |
+|            |                  |          |                   |               | in user authenticate              |
+|            |                  |          |                   |               | keyboard interactive allows       |
+|            |                  |          |                   |               | out-of-bounds writes              |
++------------+------------------+----------+-------------------+---------------+-----------------------------------+
+| musl       | CVE-2019-14697   | HIGH     | 1.1.20-r3         | 1.1.20-r5     | musl libc through 1.1.23          |
+|            |                  |          |                   |               | has an x87 floating-point         |
+|            |                  |          |                   |               | stack adjustment imbalance,       |
+|            |                  |          |                   |               | related...                        |
++------------+------------------+          +-------------------+---------------+-----------------------------------+
+| nghttp2    | CVE-2019-9511    |          | 1.35.1-r0         | 1.35.1-r1     | HTTP/2: large amount of data      |
+|            |                  |          |                   |               | requests leads to denial of       |
+|            |                  |          |                   |               | service                           |
++            +------------------+          +                   +               +-----------------------------------+
+|            | CVE-2019-9513    |          |                   |               | HTTP/2: flood using PRIORITY      |
+|            |                  |          |                   |               | frames results in excessive       |
+|            |                  |          |                   |               | resource consumption              |
++------------+------------------+----------+-------------------+---------------+-----------------------------------+
+| openssl    | CVE-2019-1543    | MEDIUM   | 1.1.1a-r1         | 1.1.1b-r1     | openssl: ChaCha20-Poly1305        |
+|            |                  |          |                   |               | with long nonces                  |
++            +------------------+          +                   +---------------+-----------------------------------+
+|            | CVE-2019-1549    |          |                   | 1.1.1d-r0     | openssl: information              |
+|            |                  |          |                   |               | disclosure in fork()              |
++            +------------------+          +                   +               +-----------------------------------+
+|            | CVE-2019-1563    |          |                   |               | openssl: information              |
+|            |                  |          |                   |               | disclosure in PKCS7_dataDecode    |
+|            |                  |          |                   |               | and CMS_decrypt_set1_pkey         |
++            +------------------+----------+                   +               +-----------------------------------+
+|            | CVE-2019-1547    | LOW      |                   |               | openssl: side-channel weak        |
+|            |                  |          |                   |               | encryption vulnerability          |
++------------+------------------+----------+-------------------+---------------+-----------------------------------+
+| sqlite     | CVE-2019-8457    | HIGH     | 3.26.0-r3         | 3.28.0-r0     | sqlite3: heap out-of-bound        |
+|            |                  |          |                   |               | read in function rtreenode()      |
++            +------------------+----------+                   +---------------+-----------------------------------+
+|            | CVE-2019-16168   | MEDIUM   |                   | 3.28.0-r1     | In SQLite through 3.29.0,         |
+|            |                  |          |                   |               | whereLoopAddBtreeIndex in         |
+|            |                  |          |                   |               | sqlite3.c can crash a browser     |
+|            |                  |          |                   |               | or...                             |
++            +------------------+          +                   +---------------+-----------------------------------+
+|            | CVE-2019-5018    |          |                   | 3.28.0-r0     | sqlite3: use-after-free in        |
+|            |                  |          |                   |               | window function leading to        |
+|            |                  |          |                   |               | remote code execution             |
++------------+------------------+----------+-------------------+---------------+-----------------------------------+
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;</content><author><name>Romero Galiza</name></author><summary type="html">Introduction Recently I came across this eye-opening post about native security scanning in Amazon’s Elastic Container Registry (ECR), and inspired by the architecture proposed by the authors I decided to document my pursuit on approaching a similar problem using an a set of open source solution. At that point I had no insight on what the community had to offer. When and how to scan images against common vulnerabilities using open source tooling? On a personal note, I believe this question (or perhaps idea) might be biased by how we used to interact with less abstract resources, such as virtual machines. Vulnerability scanning for containerized applications certainly needs a fresh approach. Static Scanning Static scanning refers to the act of checking an image against common security vulnerabilities before letting it hit production. Just like the authors of the Amazon’s article, I will approach my problem from this front. To achieve my goal I will also be using Clair, an open source project for the static analysis of vulnerabilities in application containers (appc and docker). Usage For more details on how to install Clair, please refer to their official docs. Think of Clair as an engine rather than an end user product. Once Clair is up and running, it will (after a while) aggregate information about vulnerabilities from different sources and expose an API which you (or an automated process) can interact with. Dealing with Clair’s API directly can be rather time consuming, instead I decided to check out Klar, a command line tool to facilitate analysis of images stored in a private or public Docker registry using Clair. A command line API client. Klar is designed to be used as an integration tool, it relies on enviroment variables, which you can easily tame in any CI pipeline solution out there. Klar can be installed from binaries or compiled from source. To test it locally: CLAIR_ADDR=http://your-clair-endpoint:6060 CLAIR_OUTPUT=Negligible JSON_OUTPUT=true CLAIR_THRESHOLD=10 klar ubuntu:latest Klar follows the syntax $ klar &amp;lt;image&amp;gt;, whereas &amp;lt;image&amp;gt; should match the REPOSITORY string you see in docker images command output: $ docker images REPOSITORY TAG IMAGE ID CREATED SIZE quay.io/coreos/clair-git latest 565aa423300b 7 months ago 423MB postgres latest 599272bf538f 7 months ago 287MB CLAIR_ADDR=http://your-clair-endpoint:6060 CLAIR_OUTPUT=Negligible JSON_OUTPUT=true CLAIR_THRESHOLD=10 klar quay.io/coreos/clair-git The following result style is expected when using JSON_OUTPUT=true: { &quot;LayerCount&quot;: 3, &quot;Vulnerabilities&quot;: { &quot;Critical&quot;: [ { &quot;Name&quot;: &quot;RHSA-2018:3347&quot;, &quot;NamespaceName&quot;: &quot;centos:7&quot;, &quot;Description&quot;: &quot;The python-paramiko package provides a Python module that implements the SSH2 protocol for encrypted and authenticated connections to remote machines. Unlike SSL, the SSH2 protocol does not require hierarchical certificates signed by a powerful central authority. The protocol also includes the ability to open arbitrary channels to remote services across an encrypted tunnel. Security Fix(es): * python-paramiko: Authentication bypass in auth_handler.py (CVE-2018-1000805) For more details about the security issue(s), including the impact, a CVSS score, and other related information, refer to the CVE page(s) listed in the References section.&quot;, &quot;Link&quot;: &quot;https://access.redhat.com/errata/RHSA-2018:3347&quot;, &quot;Severity&quot;: &quot;Critical&quot;, &quot;FixedBy&quot;: &quot;0:2.1.1-9.el7&quot;, &quot;FeatureName&quot;: &quot;python-paramiko&quot;, &quot;FeatureVersion&quot;: &quot;2.1.1-4.el7&quot; } ], &quot;High&quot;: [ { &quot;Name&quot;: &quot;RHSA-2019:0710&quot;, &quot;NamespaceName&quot;: &quot;centos:7&quot;, &quot;Description&quot;: &quot;Python is an interpreted, interactive, object-oriented programming language, which includes modules, classes, exceptions, very high level dynamic data types and dynamic typing. Python supports interfaces to many system calls and libraries, as well as to various windowing systems. Security Fix(es): * python: Information Disclosure due to urlsplit improper NFKC normalization (CVE-2019-9636) For more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.&quot;, &quot;Link&quot;: &quot;https://access.redhat.com/errata/RHSA-2019:0710&quot;, &quot;Severity&quot;: &quot;High&quot;, &quot;FixedBy&quot;: &quot;0:2.7.5-77.el7_6&quot;, &quot;FeatureName&quot;: &quot;python&quot;, &quot;FeatureVersion&quot;: &quot;2.7.5-69.el7_5&quot; }, { &quot;Name&quot;: &quot;RHSA-2019:1294&quot;, &quot;NamespaceName&quot;: &quot;centos:7&quot;, &quot;Description&quot;: &quot;The Berkeley Internet Name Domain (BIND) is an implementation of the Domain Name System (DNS) protocols. BIND includes a DNS server (named); a resolver library (routines for applications to use when interfacing with DNS); and tools for verifying that the DNS server is operating correctly. Security Fix(es): * bind: Limiting simultaneous TCP clients is ineffective (CVE-2018-5743) For more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.&quot;, &quot;Link&quot;: &quot;https://access.redhat.com/errata/RHSA-2019:1294&quot;, &quot;Severity&quot;: &quot;High&quot;, &quot;FixedBy&quot;: &quot;32:9.9.4-74.el7_6.1&quot;, &quot;FeatureName&quot;: &quot;bind-license&quot;, &quot;FeatureVersion&quot;: &quot;32:9.9.4-61.el7_5.1&quot; } ] } } Using Clair API directly As explained, under the hood Klar will be contacting Clair API, but if you want to deal with it directly (implementing your own client, for example) you could find all information you need under their official API documentation. To play around with it and run a scan on an image, you have to upload the image layer you would like to verify from your registry to Clair. curl -s -X POST http://your-clair-endpoint:6060/v1/layers --data @clair.json The contents of clair.json are: { &quot;Layer&quot;: { &quot;Name&quot;: &quot;sha256:123123773760869c33123123d1e5c4a91b15c5854987331459123123&quot;, &quot;Path&quot;: &quot;https://your-registry/v2/docker/some-image/blobs/sha256:123123773760869c33123123d1e5c4a91b15c5854987331459123123&quot;, &quot;Headers&quot;: { &quot;Authorization&quot;: &quot;Basic 4Asdcc3ZjXHausdHAbns123TphUUNhaG4DASdw4eJQdjNRaAsd34J0=&quot; }, &quot;Format&quot;: &quot;Docker&quot; } } Clair only seems to care about the digest (Layer.Name) and an accessible path for tar file (Layer.Path) which represents the delta of that layer (the actual contents of that layer in a file system). These values can be retrieved from the registry your image is in. Without Klar, you will need to verify all relevant layers manually, taking into account that empty layers generated by commands from Dockerfile like CMD, EXPOSE etc. never modify the content of the image and will always end up with the same digest: sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4 These can be ignored. Again, metadata about fsLayers and their respective digest can be obtained from your registry manifests, for example: curl -s -X GET https://your-registry/v2/docker/some-image/manifests/latest Once you feed clair with the layers you want to analyse, you will be able to retrieve scan results: curl -s -X GET http://your-clair-endpoint:6060/v1/layers/sha256:123123773760869c33123123d1e5c4a91b15c5854987331459123123?features&amp;amp;vulnerabilities The above will return a json object containing all vulnerabilities. Tedious process to go through manually. Alternative: Trivy Trivy is young but promising project, first found in Github about 6 months prior to the time I wrote this document. Their latest release contain binaries for different architectures, and it differs from Clair+Klar in the sense that it doesn’t rely on any self-maintained database. Ironically I decided to run a scan using Trivy on Clair’s official docker image from my own laptop (running macOS Mojave), here’s the result you might expect (all settings default): $ trivy quay.io/coreos/clair 1945-08-06T08:15:00.000+0100 INFO Updating vulnerability database... 1945-08-06T08:15:10.000+0100 INFO Updating ubuntu data... 31675 / 31675 [================================================] 100.00% 15s 1945-08-06T08:15:25.000+0100 INFO Updating amazon data... 1445 / 1445 [================================================] 100.00% 2s 1945-08-06T08:15:27.000+0100 INFO Updating nvd data... 131396 / 131396 [================================================] 100.00% 1m31s 1945-08-06T08:16:58.000+0100 INFO Updating alpine data... 14000 / 14000 [================================================] 100.00% 4s 1945-08-06T08:17:02.000+0100 INFO Updating redhat data... 20675 / 20675 [================================================] 100.00% 11s 1945-08-06T08:17:13.000+0100 INFO Updating debian data... 29629 / 29629 [================================================] 100.00% 10s 1945-08-06T08:17:23.000+0100 INFO Updating debian-oval data... 63099 / 63099 [================================================] 100.00% 30s 1945-08-06T08:15:51.000+0100 INFO Detecting Alpine vulnerabilities... quay.io/coreos/clair (alpine 3.9.0) =================================== Total: 35 (UNKNOWN: 1, LOW: 1, MEDIUM: 24, HIGH: 8, CRITICAL: 1) +------------+------------------+----------+-------------------+---------------+-----------------------------------+ | LIBRARY | VULNERABILITY ID | SEVERITY | INSTALLED VERSION | FIXED VERSION | TITLE | +------------+------------------+----------+-------------------+---------------+-----------------------------------+ | bzip2 | CVE-2019-12900 | HIGH | 1.0.6-r6 | 1.0.6-r7 | bzip2: out-of-bounds write in | | | | | | | function BZ2_decompress | +------------+------------------+ +-------------------+---------------+-----------------------------------+ | curl | CVE-2019-5481 | | 7.64.0-r1 | 7.64.0-r3 | curl: double free due to | | | | | | | subsequent call of realloc() | + +------------------+ + + +-----------------------------------+ | | CVE-2019-5482 | | | | curl: heap buffer overflow in | | | | | | | function tftp_receive_packet() | + +------------------+----------+ +---------------+-----------------------------------+ | | CVE-2019-5435 | MEDIUM | | 7.64.0-r2 | curl: Integer overflows in | | | | | | | curl_url_set() function | + +------------------+ + + +-----------------------------------+ | | CVE-2019-5436 | | | | curl: TFTP receive | | | | | | | heap buffer overflow in | | | | | | | tftp_receive_packet() function | +------------+------------------+----------+-------------------+---------------+-----------------------------------+ | expat | CVE-2018-20843 | HIGH | 2.2.6-r0 | 2.2.7-r0 | expat: large number of colons | | | | | | | in input makes parser consume | | | | | | | high amount... | + +------------------+----------+ +---------------+-----------------------------------+ | | CVE-2019-15903 | MEDIUM | | 2.2.7-r1 | expat: heap-based buffer | | | | | | | over-read via crafted XML | | | | | | | input | +------------+------------------+ +-------------------+---------------+-----------------------------------+ | file | CVE-2019-8904 | | 5.35-r0 | 5.36-r0 | file: stack-based buffer | | | | | | | over-read in do_bid_note in | | | | | | | readelf.c | + +------------------+ + + +-----------------------------------+ | | CVE-2019-8905 | | | | file: stack-based buffer | | | | | | | over-read in do_core_note in | | | | | | | readelf.c | + +------------------+ + + +-----------------------------------+ | | CVE-2019-8906 | | | | file: out-of-bounds read in | | | | | | | do_core_note in readelf.c | + +------------------+ + + +-----------------------------------+ | | CVE-2019-8907 | | | | file: do_core_note in | | | | | | | readelf.c allows remote | | | | | | | attackers to cause a denial | | | | | | | of... | + +------------------+----------+ +---------------+-----------------------------------+ | | CVE-2019-19218 | UNKNOWN | | 5.36-r1 | | +------------+------------------+----------+-------------------+---------------+-----------------------------------+ | libarchive | CVE-2017-14501 | MEDIUM | 3.3.2-r4 | 3.3.3-r0 | libarchive: Out-of-bounds read | | | | | | | in parse_file_info | + +------------------+ + + +-----------------------------------+ | | CVE-2017-14502 | | | | libarchive: Off-by-one error | | | | | | | in the read_header function | + +------------------+ + + +-----------------------------------+ | | CVE-2017-14503 | | | | libarchive: Out-of-bounds read | | | | | | | in lha_read_data_none | + +------------------+ + +---------------+-----------------------------------+ | | CVE-2019-18408 | | | 3.3.3-r1 | archive_read_format_rar_read_data | | | | | | | in | | | | | | | archive_read_support_format_rar.c | | | | | | | in libarchive before 3.4.0 has a | | | | | | | use-after-free in a... | +------------+------------------+----------+-------------------+---------------+-----------------------------------+ | libssh2 | CVE-2019-3855 | CRITICAL | 1.8.0-r4 | 1.8.1-r0 | libssh2: Integer overflow in | | | | | | | transport read resulting in | | | | | | | out of bounds write... | + +------------------+----------+ + +-----------------------------------+ | | CVE-2019-3856 | MEDIUM | | | libssh2: Integer overflow in | | | | | | | keyboard interactive handling | | | | | | | resulting in out of bounds... | + +------------------+ + + +-----------------------------------+ | | CVE-2019-3857 | | | | libssh2: Integer overflow in | | | | | | | SSH packet processing channel | | | | | | | resulting in out of... | + +------------------+ + + +-----------------------------------+ | | CVE-2019-3858 | | | | libssh2: Zero-byte allocation | | | | | | | with a specially crafted SFTP | | | | | | | packed leading to an... | + +------------------+ + + +-----------------------------------+ | | CVE-2019-3859 | | | | libssh2: Unchecked use of | | | | | | | _libssh2_packet_require and | | | | | | | _libssh2_packet_requirev | | | | | | | resulting in out-of-bounds | | | | | | | read | + +------------------+ + + +-----------------------------------+ | | CVE-2019-3860 | | | | libssh2: Out-of-bounds reads | | | | | | | with specially crafted SFTP | | | | | | | packets | + +------------------+ + + +-----------------------------------+ | | CVE-2019-3861 | | | | libssh2: Out-of-bounds reads | | | | | | | with specially crafted SSH | | | | | | | packets | + +------------------+ + + +-----------------------------------+ | | CVE-2019-3862 | | | | libssh2: Out-of-bounds memory | | | | | | | comparison with specially | | | | | | | crafted message channel | | | | | | | request | + +------------------+ + + +-----------------------------------+ | | CVE-2019-3863 | | | | libssh2: Integer overflow | | | | | | | in user authenticate | | | | | | | keyboard interactive allows | | | | | | | out-of-bounds writes | +------------+------------------+----------+-------------------+---------------+-----------------------------------+ | musl | CVE-2019-14697 | HIGH | 1.1.20-r3 | 1.1.20-r5 | musl libc through 1.1.23 | | | | | | | has an x87 floating-point | | | | | | | stack adjustment imbalance, | | | | | | | related... | +------------+------------------+ +-------------------+---------------+-----------------------------------+ | nghttp2 | CVE-2019-9511 | | 1.35.1-r0 | 1.35.1-r1 | HTTP/2: large amount of data | | | | | | | requests leads to denial of | | | | | | | service | + +------------------+ + + +-----------------------------------+ | | CVE-2019-9513 | | | | HTTP/2: flood using PRIORITY | | | | | | | frames results in excessive | | | | | | | resource consumption | +------------+------------------+----------+-------------------+---------------+-----------------------------------+ | openssl | CVE-2019-1543 | MEDIUM | 1.1.1a-r1 | 1.1.1b-r1 | openssl: ChaCha20-Poly1305 | | | | | | | with long nonces | + +------------------+ + +---------------+-----------------------------------+ | | CVE-2019-1549 | | | 1.1.1d-r0 | openssl: information | | | | | | | disclosure in fork() | + +------------------+ + + +-----------------------------------+ | | CVE-2019-1563 | | | | openssl: information | | | | | | | disclosure in PKCS7_dataDecode | | | | | | | and CMS_decrypt_set1_pkey | + +------------------+----------+ + +-----------------------------------+ | | CVE-2019-1547 | LOW | | | openssl: side-channel weak | | | | | | | encryption vulnerability | +------------+------------------+----------+-------------------+---------------+-----------------------------------+ | sqlite | CVE-2019-8457 | HIGH | 3.26.0-r3 | 3.28.0-r0 | sqlite3: heap out-of-bound | | | | | | | read in function rtreenode() | + +------------------+----------+ +---------------+-----------------------------------+ | | CVE-2019-16168 | MEDIUM | | 3.28.0-r1 | In SQLite through 3.29.0, | | | | | | | whereLoopAddBtreeIndex in | | | | | | | sqlite3.c can crash a browser | | | | | | | or... | + +------------------+ + +---------------+-----------------------------------+ | | CVE-2019-5018 | | | 3.28.0-r0 | sqlite3: use-after-free in | | | | | | | window function leading to | | | | | | | remote code execution | +------------+------------------+----------+-------------------+---------------+-----------------------------------+</summary></entry><entry><title type="html">AWS: API Gateway Cognito Authorizer</title><link href="https://blog.devopsie.com/2019-10-28/aws-api-gateway-cognito-authorizer.html" rel="alternate" type="text/html" title="AWS: API Gateway Cognito Authorizer" /><published>2019-10-28T00:00:00+00:00</published><updated>2019-10-28T00:00:00+00:00</updated><id>https://blog.devopsie.com/2019-10-28/aws-api-gateway-cognito-authorizer</id><content type="html" xml:base="https://blog.devopsie.com/2019-10-28/aws-api-gateway-cognito-authorizer.html">&lt;h2 id=&quot;scenario&quot;&gt;Scenario&lt;/h2&gt;
+
+&lt;p&gt;Imagine you want to &lt;strong&gt;build&lt;/strong&gt; and &lt;strong&gt;expose&lt;/strong&gt; a REST API on AWS. At this moment your API’s only requirement is to support a single resource (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;domain.com/default/greetings&lt;/code&gt;), and whenever this resource is called with a GET request, it should return “Hello”.&lt;/p&gt;
+
+&lt;h2 id=&quot;constraints&quot;&gt;Constraints&lt;/h2&gt;
+
+&lt;p&gt;What if you would like to &lt;strong&gt;protect&lt;/strong&gt; your API resource from unauthorized users? What if instead of greetings you would like to expose specific data fetched from third-party backends or storage solutions. We can achieve this using a AWS Cognito &lt;strong&gt;authorizer&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;solution&quot;&gt;Solution&lt;/h2&gt;
+
+&lt;p&gt;For testing purporses, let’s create a user (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;butters@southpark.com&lt;/code&gt;) in your Cognito User Pool, followed by a administrator triggered “sign up” confirmation:&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;# Create user (sign up):&lt;/span&gt;
+aws cognito-idp sign-up &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;--client-id&lt;/span&gt; a11b22c33d44e55f66g77h88i99j &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;--username&lt;/span&gt; butters@southpark.com &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;--password&lt;/span&gt; S3cr3tP4ssw0rd &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;--region&lt;/span&gt; eu-central-1 &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;--user-attributes&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'[
+    {&quot;Name&quot;:&quot;given_name&quot;,&quot;Value&quot;:&quot;Butters&quot;},
+    {&quot;Name&quot;:&quot;family_name&quot;,&quot;Value&quot;:&quot;Scotch&quot;},
+    {&quot;Name&quot;:&quot;email&quot;,&quot;Value&quot;:&quot;butters@southpark.com&quot;},
+    {&quot;Name&quot;:&quot;gender&quot;,&quot;Value&quot;:&quot;Male&quot;}
+]'&lt;/span&gt;
+
+&lt;span class=&quot;c&quot;&gt;# Confirm sign up:&lt;/span&gt;
+aws cognito-idp admin-confirm-sign-up &lt;span class=&quot;nt&quot;&gt;--user-pool-id&lt;/span&gt; eu-central-x_xxxyyyzzz &lt;span class=&quot;nt&quot;&gt;--username&lt;/span&gt; 58ccaeb4-0668-4361-97f2-b782f4dc00c1
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;You could rely directly on your application in order to authenticate, for this example, let’s simply use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;curl&lt;/code&gt;. To keep things simple and repetable, create a .json file (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;aws-auth-data.json&lt;/code&gt;) with the following structure, replacing values when needed:&lt;/p&gt;
+
+&lt;div class=&quot;language-json highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;AuthParameters&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;USERNAME&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;butters@southpark.com&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+      &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;PASSWORD&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;S3cr3tP4ssw0rd&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;AuthFlow&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;USER_PASSWORD_AUTH&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+   &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;ClientId&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;a11b22c33d44e55f66g77h88i99j&quot;&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;More information about different &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;AuthFlow&lt;/code&gt; can be found on this &lt;a href=&quot;https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_InitiateAuth.html&quot;&gt;page&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Putting it all together, we end up with the following authentication script (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;fetch_id_token.sh&lt;/code&gt;):&lt;/p&gt;
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;#!/bin/bash&lt;/span&gt;
+curl &lt;span class=&quot;nt&quot;&gt;-s&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-X&lt;/span&gt; POST &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+    &lt;span class=&quot;nt&quot;&gt;--data&lt;/span&gt; @aws-auth-data.json &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;-H&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'X-Amz-Target: AWSCognitoIdentityProviderService.InitiateAuth'&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+        &lt;span class=&quot;nt&quot;&gt;-H&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'Content-Type: application/x-amz-json-1.1'&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+        https://cognito-idp.eu-central-1.amazonaws.com | jq .AuthenticationResult.IdToken | &lt;span class=&quot;nb&quot;&gt;sed&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'s/\&quot;//g'&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The above command will call &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;AWSCognitoIdentityProviderService&lt;/code&gt; API on the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;InitiateAuth&lt;/code&gt; resouce, this expects a request content type &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;x-amz-json-1.1&lt;/code&gt; (provided with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;aws-auth-data.json&lt;/code&gt;). A successful authentication will return:&lt;/p&gt;
+
+&lt;div class=&quot;language-json highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;AuthenticationResult&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;AccessToken&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;FVytONjAyMnpvVmtYaFR...FVytONjAyMnpvVmtYaFR&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;IdToken&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;NhaTY0Z0FjMFNhaTY00F...NhaTY0Z0FjMFNhaTY00F&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;RefreshToken&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;eyJjdHkiOiJKV1QiLCJb...eyJjdHkiOiJKV1QiLCJb&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;TokenType&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;Bearer&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+        &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;ExpiresIn&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3600&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;},&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+    &lt;/span&gt;&lt;span class=&quot;nl&quot;&gt;&quot;ChallengeParameters&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;w&quot;&gt; &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;w&quot;&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Each of these tokens follows the JWT standard and can be validated &lt;a href=&quot;https://jwt.io/&quot;&gt;here&lt;/a&gt;. You should also verify the claim on your beckend before further processing, like discussed &lt;a href=&quot;https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-tokens-verifying-a-jwt.html&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Our script job is to parse the blob above, retrieving the only value we care about for the sake of this example. That would be the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;IdToken&lt;/code&gt;. We could use it as such:&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;curl &lt;span class=&quot;nt&quot;&gt;-i&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-s&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-X&lt;/span&gt; GET https://example.execute-api.eu-central-1.amazonaws.com/default/greetings &lt;span class=&quot;nt&quot;&gt;-H&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;Authorization: &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;$(&lt;/span&gt;./fetch_id_token.sh&lt;span class=&quot;si&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;</content><author><name>Romero Galiza</name></author><summary type="html">Scenario Imagine you want to build and expose a REST API on AWS. At this moment your API’s only requirement is to support a single resource (domain.com/default/greetings), and whenever this resource is called with a GET request, it should return “Hello”. Constraints What if you would like to protect your API resource from unauthorized users? What if instead of greetings you would like to expose specific data fetched from third-party backends or storage solutions. We can achieve this using a AWS Cognito authorizer. Solution For testing purporses, let’s create a user (butters@southpark.com) in your Cognito User Pool, followed by a administrator triggered “sign up” confirmation: # Create user (sign up): aws cognito-idp sign-up \ --client-id a11b22c33d44e55f66g77h88i99j \ --username butters@southpark.com \ --password S3cr3tP4ssw0rd \ --region eu-central-1 \ --user-attributes '[ {&quot;Name&quot;:&quot;given_name&quot;,&quot;Value&quot;:&quot;Butters&quot;}, {&quot;Name&quot;:&quot;family_name&quot;,&quot;Value&quot;:&quot;Scotch&quot;}, {&quot;Name&quot;:&quot;email&quot;,&quot;Value&quot;:&quot;butters@southpark.com&quot;}, {&quot;Name&quot;:&quot;gender&quot;,&quot;Value&quot;:&quot;Male&quot;} ]' # Confirm sign up: aws cognito-idp admin-confirm-sign-up --user-pool-id eu-central-x_xxxyyyzzz --username 58ccaeb4-0668-4361-97f2-b782f4dc00c1 You could rely directly on your application in order to authenticate, for this example, let’s simply use curl. To keep things simple and repetable, create a .json file (aws-auth-data.json) with the following structure, replacing values when needed: { &quot;AuthParameters&quot; : { &quot;USERNAME&quot; : &quot;butters@southpark.com&quot;, &quot;PASSWORD&quot; : &quot;S3cr3tP4ssw0rd&quot; }, &quot;AuthFlow&quot; : &quot;USER_PASSWORD_AUTH&quot;, &quot;ClientId&quot; : &quot;a11b22c33d44e55f66g77h88i99j&quot; } More information about different AuthFlow can be found on this page. Putting it all together, we end up with the following authentication script (fetch_id_token.sh): #!/bin/bash curl -s -X POST \ --data @aws-auth-data.json \ -H 'X-Amz-Target: AWSCognitoIdentityProviderService.InitiateAuth' \ -H 'Content-Type: application/x-amz-json-1.1' \ https://cognito-idp.eu-central-1.amazonaws.com | jq .AuthenticationResult.IdToken | sed 's/\&quot;//g' The above command will call AWSCognitoIdentityProviderService API on the InitiateAuth resouce, this expects a request content type x-amz-json-1.1 (provided with aws-auth-data.json). A successful authentication will return: { &quot;AuthenticationResult&quot;: { &quot;AccessToken&quot;: &quot;FVytONjAyMnpvVmtYaFR...FVytONjAyMnpvVmtYaFR&quot;, &quot;IdToken&quot;: &quot;NhaTY0Z0FjMFNhaTY00F...NhaTY0Z0FjMFNhaTY00F&quot;, &quot;RefreshToken&quot;: &quot;eyJjdHkiOiJKV1QiLCJb...eyJjdHkiOiJKV1QiLCJb&quot;, &quot;TokenType&quot;: &quot;Bearer&quot;, &quot;ExpiresIn&quot;: 3600 }, &quot;ChallengeParameters&quot;: {} } Each of these tokens follows the JWT standard and can be validated here. You should also verify the claim on your beckend before further processing, like discussed here. Our script job is to parse the blob above, retrieving the only value we care about for the sake of this example. That would be the IdToken. We could use it as such: curl -i -s -X GET https://example.execute-api.eu-central-1.amazonaws.com/default/greetings -H &quot;Authorization: $(./fetch_id_token.sh)&quot;</summary></entry><entry><title type="html">CloudStack: Site-to-Site VPN between regions</title><link href="https://blog.devopsie.com/2019-10-02/cloudstack-site-to-site-vpn.html" rel="alternate" type="text/html" title="CloudStack: Site-to-Site VPN between regions" /><published>2019-10-02T00:00:00+00:00</published><updated>2019-10-02T00:00:00+00:00</updated><id>https://blog.devopsie.com/2019-10-02/cloudstack-site-to-site-vpn</id><content type="html" xml:base="https://blog.devopsie.com/2019-10-02/cloudstack-site-to-site-vpn.html">&lt;h2 id=&quot;problem&quot;&gt;Problem&lt;/h2&gt;
+
+&lt;p&gt;How can I interconnect VPCs from different regions knowing that each region is controlled by its own cluster of management servers. Our scenario involves two different regions, for the sake of this example, let us name them simply RegionA and RegionB.&lt;/p&gt;
+
+&lt;h2 id=&quot;solution-irrelevant-settings-and-values-are-ommited&quot;&gt;Solution (irrelevant settings and values are ommited)&lt;/h2&gt;
+
+&lt;h3 id=&quot;step-1-create-a-vpc-in-each-region&quot;&gt;Step 1: Create a VPC in each region&lt;/h3&gt;
+
+&lt;h3 id=&quot;step-2-create-a-site-to-site-vpn-for-each-vpc-created-in-step-1&quot;&gt;Step 2: Create a Site-to-Site VPN for each VPC created in step 1&lt;/h3&gt;
+
+&lt;p&gt;If you’re using the UI, go to Networks (left-side menu), then click on the the RegionA VPC and then click on button Configure. You will be prompted with a diagram, click on Site-to-Site VPNs inside the VPC. There you must create a new endpoint with a public IP address (normally this should be automatically assigned). The idea behind this step is that each VPC in each region will have its own public endpoint. Repeat the step for RegionB. Save these addresses, we will need them later.&lt;/p&gt;
+
+&lt;h3 id=&quot;step-3-create-a-customer-gateway-for-each-region&quot;&gt;Step 3: Create a Customer Gateway for each Region&lt;/h3&gt;
+
+&lt;p&gt;When creating a customer gateway for RegionA, make sure it point to the RegionB Site-to-Site VPN endpoint address created in step 2 (it must go under the Gateway field), and RegionB customer gateway should point to RegionA Site-to-Site VPN endpoint.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/cosmic-gateway.png&quot; alt=&quot;Cosmic&quot; /&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;The CIDR list field must contain the networks (tiers) from the remote VPC, separated by comma. Only add networks that you would like to make accessible from within your VPC.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Note that the customer gateway holds all IPSEC settings, these are a PSK, IKE and ESP settings, they should match between regions.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;step-4-create-a-vpn-connection-for-both-regiona-and-regionb-vpcs&quot;&gt;Step 4: Create a VPN Connection for both RegionA and RegionB VPCs&lt;/h3&gt;
+
+&lt;p&gt;Each VPN Connection should be associated with a VPN Customer Gateway, they should be selected within a dropdown menu. One of them must be marked as Passive (this instante will wait for the connection to be innitiated by the other region).&lt;/p&gt;</content><author><name>Romero Galiza</name></author><summary type="html">Problem How can I interconnect VPCs from different regions knowing that each region is controlled by its own cluster of management servers. Our scenario involves two different regions, for the sake of this example, let us name them simply RegionA and RegionB. Solution (irrelevant settings and values are ommited) Step 1: Create a VPC in each region Step 2: Create a Site-to-Site VPN for each VPC created in step 1 If you’re using the UI, go to Networks (left-side menu), then click on the the RegionA VPC and then click on button Configure. You will be prompted with a diagram, click on Site-to-Site VPNs inside the VPC. There you must create a new endpoint with a public IP address (normally this should be automatically assigned). The idea behind this step is that each VPC in each region will have its own public endpoint. Repeat the step for RegionB. Save these addresses, we will need them later. Step 3: Create a Customer Gateway for each Region When creating a customer gateway for RegionA, make sure it point to the RegionB Site-to-Site VPN endpoint address created in step 2 (it must go under the Gateway field), and RegionB customer gateway should point to RegionA Site-to-Site VPN endpoint. The CIDR list field must contain the networks (tiers) from the remote VPC, separated by comma. Only add networks that you would like to make accessible from within your VPC. Note that the customer gateway holds all IPSEC settings, these are a PSK, IKE and ESP settings, they should match between regions. Step 4: Create a VPN Connection for both RegionA and RegionB VPCs Each VPN Connection should be associated with a VPN Customer Gateway, they should be selected within a dropdown menu. One of them must be marked as Passive (this instante will wait for the connection to be innitiated by the other region).</summary></entry><entry><title type="html">Gateway Load Balancing Protocol</title><link href="https://blog.devopsie.com/2019-08-26/gateway-load-balacing-protocol.html" rel="alternate" type="text/html" title="Gateway Load Balancing Protocol" /><published>2019-08-26T00:00:00+00:00</published><updated>2019-08-26T00:00:00+00:00</updated><id>https://blog.devopsie.com/2019-08-26/gateway-load-balacing-protocol</id><content type="html" xml:base="https://blog.devopsie.com/2019-08-26/gateway-load-balacing-protocol.html">&lt;p&gt;If you came this far you probably have seen acronyms such as VRRP (Virtual Router Redundancy Protocol) and perhaps HSRP (Hot Standby Router Protocol). They all share the same denominator: first hop redundancy. Speaking plainly, first hop redundancy can be achieved by a series of techniques which might include well-known protocols (focus of this discussion), virtual chassis (such as the one implemented by Juniper), clustered hardware (mostly found on firewalls modules and load balancers), and so on. Gateway Load Balancing Protocol is a proprietary alternative - developed by Cisco - for protocol like VRRP, HSRP, and CARP.&lt;/p&gt;
+
+&lt;p&gt;The main advantage GLBP offers is (as its name suggests) the traffic load balancing within a pool of GLBP aware devices, where all routers will actively forward traffic. Both VRRP and HSRP provides you with an active-backup architecture, which depending on the set-up might represent a waste of forwarding capacity, making engineers wonder: “Why must I use only one if I could be using both?”&lt;/p&gt;
+
+&lt;p&gt;Load balancing, or more specifically: load sharing, however, can also be accomplished with VRRP or HSRP by simply using multiple instances of themselves. For example: VLANs 10, 20 and 30 might have the highest HSRP priority set to Router-A, and VLANs 40 and 50 to Router-B. This kind of set-up can easily become complex and difficult to maintain, which makes it an unusual practice, not to mention that the amount of traffic being forwarded per second by each of these VLANs is unpredictable, resulting in a highly discrepant load in each of the routers.&lt;/p&gt;
+
+&lt;p&gt;As already stated, GLBP’s task it to maintain a list of routing devices, allowing every device in that list to route traffic in a round-robin manner. This behaviour is completely transparent for the hosts pointing to the GLBP virtual IP address, and it will bring as result a better back-plane capacity usage together with the so expected redundancy.&lt;/p&gt;
+
+&lt;p&gt;Behind the curtains each physical device will receive a virtual MAC address, and whenever an ARP request is received (querying the MAC address of virtual IP address) GLBP will instruct a real router to answer with its virtual physical address, therefore, the host will end up with an ARP entry containing the virtual IP address associated with a virtual MAC address, of Router-B, for i.e. Schematically we have:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/glbp.png&quot; alt=&quot;GLBP Diagram&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;For a second request, GLBP will instruct a different router to send a reply, and so on. Besides the basic round-robin method, GLBP also supports host-dependent and weighted balancing (check official documentation for more details). The AVG acronymn (R1, diagram above) stands for Active Virtual Gateway, his role is to be the primary device answering in behalf of the virtual IP address, he is the one sending out ARP replies for all active routers in the GLBP pool (R1, R2 and R3, diagram above). The remaining routers in the pool are called AVF (Active Virtual Forwarder) in the GLBP terminology. Please note that the AVG has a dual role in this play, he will also act as a AVF by fowarding traffic.&lt;/p&gt;
+
+&lt;p&gt;In case the AVG fails, another will be elected based on a pre-defined priority (highest comes first). In case one of the AVF fails, another AVF will start answering for its virtual MAC address. The heartbeat (a well-known technique that defines when a member of a generic cluster is dead or alive) is done through the exchange of ‘Hello’ messages, and each cluster might contain up to four members.&lt;/p&gt;
+
+&lt;p&gt;‘Hello’ messages are sent out to the multicast IP address 224.0.0.102, encapsulated within UDP datagrams on port 3222, its PDU possess 60 bytes (plus 8 extra bytes for the UDP header).&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/wireshark_glbp.png&quot; alt=&quot;Wireshark GLBP&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;If you are familiar with VRRP or HSRP, the configuration steps will be particularly comforting, as the following:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;R1(config-if)# glbp &amp;lt;instance number&amp;gt; ?
+  authentication  Authentication method
+  forwarder       Forwarder configuration
+  ip              Enable group and set virtual IP address
+  load-balancing  Load balancing method
+  name            Redundancy name
+  preempt         Overthrow lower priority designated routers
+  priority        Priority level
+  timers          Adjust GLBP timers
+  weighting       Gateway weighting and tracking
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;GLBP must be configured in all AVF, they must hold the same IP address (not necessarily under the same instance number). The priority option will determine the AVG, and its default value is 100. You also might want to set up preemption. Remember: deterministic environments are easier to maintain over time.&lt;/p&gt;</content><author><name>Romero Galiza</name></author><summary type="html">If you came this far you probably have seen acronyms such as VRRP (Virtual Router Redundancy Protocol) and perhaps HSRP (Hot Standby Router Protocol). They all share the same denominator: first hop redundancy. Speaking plainly, first hop redundancy can be achieved by a series of techniques which might include well-known protocols (focus of this discussion), virtual chassis (such as the one implemented by Juniper), clustered hardware (mostly found on firewalls modules and load balancers), and so on. Gateway Load Balancing Protocol is a proprietary alternative - developed by Cisco - for protocol like VRRP, HSRP, and CARP. The main advantage GLBP offers is (as its name suggests) the traffic load balancing within a pool of GLBP aware devices, where all routers will actively forward traffic. Both VRRP and HSRP provides you with an active-backup architecture, which depending on the set-up might represent a waste of forwarding capacity, making engineers wonder: “Why must I use only one if I could be using both?” Load balancing, or more specifically: load sharing, however, can also be accomplished with VRRP or HSRP by simply using multiple instances of themselves. For example: VLANs 10, 20 and 30 might have the highest HSRP priority set to Router-A, and VLANs 40 and 50 to Router-B. This kind of set-up can easily become complex and difficult to maintain, which makes it an unusual practice, not to mention that the amount of traffic being forwarded per second by each of these VLANs is unpredictable, resulting in a highly discrepant load in each of the routers. As already stated, GLBP’s task it to maintain a list of routing devices, allowing every device in that list to route traffic in a round-robin manner. This behaviour is completely transparent for the hosts pointing to the GLBP virtual IP address, and it will bring as result a better back-plane capacity usage together with the so expected redundancy. Behind the curtains each physical device will receive a virtual MAC address, and whenever an ARP request is received (querying the MAC address of virtual IP address) GLBP will instruct a real router to answer with its virtual physical address, therefore, the host will end up with an ARP entry containing the virtual IP address associated with a virtual MAC address, of Router-B, for i.e. Schematically we have: For a second request, GLBP will instruct a different router to send a reply, and so on. Besides the basic round-robin method, GLBP also supports host-dependent and weighted balancing (check official documentation for more details). The AVG acronymn (R1, diagram above) stands for Active Virtual Gateway, his role is to be the primary device answering in behalf of the virtual IP address, he is the one sending out ARP replies for all active routers in the GLBP pool (R1, R2 and R3, diagram above). The remaining routers in the pool are called AVF (Active Virtual Forwarder) in the GLBP terminology. Please note that the AVG has a dual role in this play, he will also act as a AVF by fowarding traffic. In case the AVG fails, another will be elected based on a pre-defined priority (highest comes first). In case one of the AVF fails, another AVF will start answering for its virtual MAC address. The heartbeat (a well-known technique that defines when a member of a generic cluster is dead or alive) is done through the exchange of ‘Hello’ messages, and each cluster might contain up to four members. ‘Hello’ messages are sent out to the multicast IP address 224.0.0.102, encapsulated within UDP datagrams on port 3222, its PDU possess 60 bytes (plus 8 extra bytes for the UDP header). If you are familiar with VRRP or HSRP, the configuration steps will be particularly comforting, as the following: R1(config-if)# glbp &amp;lt;instance number&amp;gt; ? authentication Authentication method forwarder Forwarder configuration ip Enable group and set virtual IP address load-balancing Load balancing method name Redundancy name preempt Overthrow lower priority designated routers priority Priority level timers Adjust GLBP timers weighting Gateway weighting and tracking GLBP must be configured in all AVF, they must hold the same IP address (not necessarily under the same instance number). The priority option will determine the AVG, and its default value is 100. You also might want to set up preemption. Remember: deterministic environments are easier to maintain over time.</summary></entry><entry><title type="html">Notes on Isometric Projection</title><link href="https://blog.devopsie.com/2019-08-20/notes-on-isometric-projection.html" rel="alternate" type="text/html" title="Notes on Isometric Projection" /><published>2019-08-20T00:00:00+00:00</published><updated>2019-08-20T00:00:00+00:00</updated><id>https://blog.devopsie.com/2019-08-20/notes-on-isometric-projection</id><content type="html" xml:base="https://blog.devopsie.com/2019-08-20/notes-on-isometric-projection.html">&lt;p&gt;The concept of an isometric projection (from the Greek, ísos: “equal” and metrikós: “measure”), or simply: parallel perspective, had existed in a rough empirical form for centuries as a method for visually representing three-dimensional objects in two dimensions. The whole idea consists in keeping the three coordinate axes (x, y and z) equally foreshortened and making the angles between any two of them as 120 degrees.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/isometric.png&quot; alt=&quot;Isometric Angles&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;To project your drawing isometrically, let’s say: a generic computer network topology, all your elements (devices, cabling, surfaces, etc) must obey this rule and as a result you will end up with the following aspect:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/example.png&quot; alt=&quot;Example&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Many flavours of drawing tools are currently available in the market, I opted to embed Microsoft Visio in this discussion as it turned out to be considerably popular among Information Technology engineers. The easiest way to freely draw isometric elements is to use an isometric grid. An isometric grid can be described as an backgroud pattern of isometric shapes that can be used as a guide for your shapes and drawings. For example:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/grid.png&quot; alt=&quot;Grid&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Unfortunately Microsoft Visio does not support such feature, which makes this article relevant for any tool you may use. Luckily you can easily find templates on-line containing an isometric grid as its background image, such as the ones found here.&lt;/p&gt;
+
+&lt;p&gt;If you have already been using Microsoft Visio for a while, you probably have notice that many downloadable shapes contains the words: 2D, 3D or isometric. 3D and isometric shapes are (mostly) the same when it comes to .vss files. They are the ones you will need in order to create three dimensional diagrams.&lt;/p&gt;
+
+&lt;p&gt;For the rest, all you need to do is to find the appropriate grid size, and start drawing on the top of it:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/visio.png&quot; alt=&quot;Visio&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;If keeping the grid is a problem, you can copy the created diagram by selecting all elements (CTRL+A) and pasting it into a blank template.&lt;/p&gt;</content><author><name>Romero Galiza</name></author><summary type="html">The concept of an isometric projection (from the Greek, ísos: “equal” and metrikós: “measure”), or simply: parallel perspective, had existed in a rough empirical form for centuries as a method for visually representing three-dimensional objects in two dimensions. The whole idea consists in keeping the three coordinate axes (x, y and z) equally foreshortened and making the angles between any two of them as 120 degrees. To project your drawing isometrically, let’s say: a generic computer network topology, all your elements (devices, cabling, surfaces, etc) must obey this rule and as a result you will end up with the following aspect: Many flavours of drawing tools are currently available in the market, I opted to embed Microsoft Visio in this discussion as it turned out to be considerably popular among Information Technology engineers. The easiest way to freely draw isometric elements is to use an isometric grid. An isometric grid can be described as an backgroud pattern of isometric shapes that can be used as a guide for your shapes and drawings. For example: Unfortunately Microsoft Visio does not support such feature, which makes this article relevant for any tool you may use. Luckily you can easily find templates on-line containing an isometric grid as its background image, such as the ones found here. If you have already been using Microsoft Visio for a while, you probably have notice that many downloadable shapes contains the words: 2D, 3D or isometric. 3D and isometric shapes are (mostly) the same when it comes to .vss files. They are the ones you will need in order to create three dimensional diagrams. For the rest, all you need to do is to find the appropriate grid size, and start drawing on the top of it: If keeping the grid is a problem, you can copy the created diagram by selecting all elements (CTRL+A) and pasting it into a blank template.</summary></entry><entry><title type="html">Python: Yum Security Updates</title><link href="https://blog.devopsie.com/2018-11-09/python-yum-security-updates.html" rel="alternate" type="text/html" title="Python: Yum Security Updates" /><published>2018-11-09T00:00:00+00:00</published><updated>2018-11-09T00:00:00+00:00</updated><id>https://blog.devopsie.com/2018-11-09/python-yum-security-updates</id><content type="html" xml:base="https://blog.devopsie.com/2018-11-09/python-yum-security-updates.html">&lt;p&gt;I have seen a lot of engineers attempting to come up with ways to deal with security reports, automated patching and so on. Every scenario requires tailored solutions driven by both technicalities such as operational systems and applications, and business requirements. This attempt (or simply “side note”) is specific for operational systems using YUM package manager (notably CentOS and RHEL).&lt;/p&gt;
+
+&lt;p&gt;Since Yum has been written in Python, it provides us with modules to properly deal with its API. Although not very friendly, the official documentation is available &lt;a href=&quot;http://yum.baseurl.org/api/&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;At first the script below might seem redundant (you might be able to achieve the same result using the yum command line interface) and completely informal, but think of it as an example of how to use the YUM API. Imagine that instead of generating a pretty table as the output, you would like to serialize it within a JSON string and push it to a NoSQL database such as DynamoDB in order to implement a state machine allowing a certain business logic to act upon specific conditions.&lt;/p&gt;
+
+&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;#!/usr/bin/env python
+&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;__future__&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;print_function&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;yum&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;yum.update_md&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;UpdateMetadata&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;prettytable&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PrettyTable&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;base&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;yum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;YumBase&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;base&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;setCacheDir&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;enabled_repos&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;base&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;repos&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;listEnabled&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;md_info&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;UpdateMetadata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;repo&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;enabled_repos&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;md_info&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;add&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;repo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;yum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Errors&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;RepoMDError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;continue&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;package_list&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;base&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;doPackageLists&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;pkgnarrow&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'updates'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;patterns&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;''&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;ignore_case&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;True&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;table&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PrettyTable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'Severity'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;'Id'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;'Issued'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;'Package'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;'Version'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pkg&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;package_list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;updates&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;notice&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;md_info&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get_notice&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pkg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nvr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;notice&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;md&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;notice&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get_metadata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;md&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'type'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;'security'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;table&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;add_row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+                &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;
+                    &lt;span class=&quot;n&quot;&gt;md&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'severity'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+                    &lt;span class=&quot;n&quot;&gt;md&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'update_id'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+                    &lt;span class=&quot;n&quot;&gt;md&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'issued'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+                    &lt;span class=&quot;n&quot;&gt;pkg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                    &lt;span class=&quot;nb&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pkg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;evr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+                &lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+            &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;table&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;</content><author><name>Romero Galiza</name></author><summary type="html">I have seen a lot of engineers attempting to come up with ways to deal with security reports, automated patching and so on. Every scenario requires tailored solutions driven by both technicalities such as operational systems and applications, and business requirements. This attempt (or simply “side note”) is specific for operational systems using YUM package manager (notably CentOS and RHEL). Since Yum has been written in Python, it provides us with modules to properly deal with its API. Although not very friendly, the official documentation is available here. At first the script below might seem redundant (you might be able to achieve the same result using the yum command line interface) and completely informal, but think of it as an example of how to use the YUM API. Imagine that instead of generating a pretty table as the output, you would like to serialize it within a JSON string and push it to a NoSQL database such as DynamoDB in order to implement a state machine allowing a certain business logic to act upon specific conditions. #!/usr/bin/env python from __future__ import print_function import yum from yum.update_md import UpdateMetadata from prettytable import PrettyTable base = yum.YumBase() base.setCacheDir() enabled_repos = base.repos.listEnabled() md_info = UpdateMetadata() for repo in enabled_repos: try: md_info.add(repo) except yum.Errors.RepoMDError: continue package_list = base.doPackageLists( pkgnarrow='updates', patterns='', ignore_case=True ) table = PrettyTable( ['Severity', 'Id', 'Issued', 'Package', 'Version'] ) for pkg in package_list.updates: notice = md_info.get_notice(pkg.nvr) if notice: md = notice.get_metadata() if md['type'] == 'security': table.add_row( [ md['severity'], md['update_id'], md['issued'], pkg.name, str(pkg.evr) ] ) print(table)</summary></entry><entry><title type="html">Cloudian Python API Client</title><link href="https://blog.devopsie.com/2018-07-31/cloudian-python-api-client.html" rel="alternate" type="text/html" title="Cloudian Python API Client" /><published>2018-07-31T00:00:00+00:00</published><updated>2018-07-31T00:00:00+00:00</updated><id>https://blog.devopsie.com/2018-07-31/cloudian-python-api-client</id><content type="html" xml:base="https://blog.devopsie.com/2018-07-31/cloudian-python-api-client.html">&lt;p&gt;&lt;a href=&quot;https://ceph.com/ceph-storage/object-storage/&quot;&gt;Ceph&lt;/a&gt; has been my choice for object storage ever since Giant has been released somewhere in 2016, but recently I have had the change to experience a different (and proprietary) flavour within the terms of capacity and performance scalability, S3 interface support, and data durability.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://cloudian.com/products/hyperstore/&quot;&gt;Cloudian® HyperStore®&lt;/a&gt; tries to solve what one would perhaps use &lt;a href=&quot;http://docs.ceph.com/docs/master/radosgw/&quot;&gt;Ceph Object Gateway&lt;/a&gt; (radosgw), which is to provide highly scalable object storage with a compliant S3 interface and features.&lt;/p&gt;
+
+&lt;p&gt;During my “trial” I decided to contribute to their product by writing a Python API client, available &lt;a href=&quot;https://github.com/romerojunior/cloudian-api&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;You can easily install it via pip:&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;pip install cloudianapi
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;An simple usage example would be instantiating the client and following the same API calls documented on their documentation, as below:&lt;/p&gt;
+
+&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;cloudianapi.client&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CloudianAPIClient&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;client&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CloudianAPIClient&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;url&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;https://admin-api.example.org&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;user&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;super-admin&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;s3cr3t&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;port&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;8080&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# # Print all nodes from a given region and their respective used capacity:
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;node&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;monitor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nodelist&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;region&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;eu-east&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;'{node}: {value} KB used'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;format&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;monitor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;host&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nodeId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;node&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'diskUsedKb'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;][&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'value'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;node&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;node&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# Deleting user Cartman from a given group:
+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;user&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;method&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;DELETE&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;userId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Cartman&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;groupId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;ABC&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# Adding user Butters to a given group:
+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;payload&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;s&quot;&gt;&quot;userId&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;Butters&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;s&quot;&gt;&quot;groupId&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;ABC&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;s&quot;&gt;&quot;userType&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;User&quot;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;user&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;method&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'PUT'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;json&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;payload&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# Print details about a given node:
+&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;monitor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;host&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nodeId&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;node01&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;</content><author><name>Romero Galiza</name></author><summary type="html">Ceph has been my choice for object storage ever since Giant has been released somewhere in 2016, but recently I have had the change to experience a different (and proprietary) flavour within the terms of capacity and performance scalability, S3 interface support, and data durability. Cloudian® HyperStore® tries to solve what one would perhaps use Ceph Object Gateway (radosgw), which is to provide highly scalable object storage with a compliant S3 interface and features. During my “trial” I decided to contribute to their product by writing a Python API client, available here. You can easily install it via pip: pip install cloudianapi An simple usage example would be instantiating the client and following the same API calls documented on their documentation, as below: from cloudianapi.client import CloudianAPIClient client = CloudianAPIClient( url=&quot;https://admin-api.example.org&quot;, user=&quot;super-admin&quot;, key=&quot;s3cr3t&quot;, port=8080 ) # # Print all nodes from a given region and their respective used capacity: for node in client.monitor.nodelist(region=&quot;eu-east&quot;): print '{node}: {value} KB used'.format( value=client.monitor.host(nodeId=node)['diskUsedKb']['value'], node=node ) # Deleting user Cartman from a given group: client.user(method=&quot;DELETE&quot;, userId=&quot;Cartman&quot;, groupId=&quot;ABC&quot;) # Adding user Butters to a given group: payload = { &quot;userId&quot;: &quot;Butters&quot;, &quot;groupId&quot;: &quot;ABC&quot;, &quot;userType&quot;: &quot;User&quot; } client.user(method='PUT', json=payload) # Print details about a given node: print client.monitor.host(nodeId=&quot;node01&quot;)</summary></entry><entry><title type="html">Structuring Ansible Projects</title><link href="https://blog.devopsie.com/2018-07-15/structuring-ansible-projects.html" rel="alternate" type="text/html" title="Structuring Ansible Projects" /><published>2018-07-15T00:00:00+00:00</published><updated>2018-07-15T00:00:00+00:00</updated><id>https://blog.devopsie.com/2018-07-15/structuring-ansible-projects</id><content type="html" xml:base="https://blog.devopsie.com/2018-07-15/structuring-ansible-projects.html">&lt;p&gt;Those experienced with Chef probably first heard about reusability, structuring and versioning when writing their very first cookbook, but as a newcomer to Ansible and facing AWX for the very first time, this seems to be one of the last explored topics, if not left completely unanswered (mostly due to Ansible’s simplistic nature).&lt;/p&gt;
+
+&lt;p&gt;Even though Ansible provides engineers with a decent amount of information on roles and playbooks, it still leaves room for interpretation on how your code should be structured within an organization or a team. Without prior experience it may be a challenge to visualise the end product, specially in the long term. The question is: How can we organize our Ansible code in a intuitive and readable way, and improve reusability at the same time?&lt;/p&gt;
+
+&lt;p&gt;In order to answer the question, firstly, an understanding of what each component is concerned about and how they can be accessed need to be agreed upon. Below you will find guidelines based on how I’ve personally interpretated the problem.&lt;/p&gt;
+
+&lt;h1 id=&quot;access-policy&quot;&gt;Access policy&lt;/h1&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Roles are intrinsically public, therefore they must not hold any private information.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Playbooks are threated as private, considering they may contain data that should not be publically accessed or shared across teams, for example: variables storing valuable information about a particular host.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1 id=&quot;separation-of-concerns&quot;&gt;Separation of concerns&lt;/h1&gt;
+
+&lt;h2 id=&quot;separation-of-concerns-within-roles&quot;&gt;Separation of concerns within roles&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Roles must not contain any unsolved dependencies, for example: If a specific package is required for a given role to function, this dependency needs to be dealt within the role itself.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;If a given value may change depending on external requirements, this value should be defined as a variable (allowing for a playbook to override it if and when needed).&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Each role is free to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;set_facts&lt;/code&gt; on any host. This is particularly useful as triggers for further steps within a playbook (but never another role, since ideally roles should never be aware or depend on a different role). I personally like to think about this as the way a role can communicate back to a playbook.&lt;/p&gt;
+
+    &lt;ul&gt;
+      &lt;li&gt;When set, a fact &lt;strong&gt;must&lt;/strong&gt; be &lt;strong&gt;defined&lt;/strong&gt; within all test cases. For example, if you need to set a fact such as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;update_needed = true&lt;/code&gt;, its value needs to default to something (either &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;true&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;false&lt;/code&gt;). A host should never finish running a role without defining &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;update_needed&lt;/code&gt;. A short example:&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;language-yml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;# Let's pretend for a minute we're writing a task within a role responsible for checking if any updates are need within a CentOS/RHEL host...&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# start assuming no updates are needed (default behaviour):&lt;/span&gt;
+&lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;set_fact&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;update_needed&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;false&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# check if updates are needed...&lt;/span&gt;
+&lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;check yum updates&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;command&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;yum&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s&quot;&gt;check-update&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt; &lt;/span&gt;&lt;span class=&quot;s&quot;&gt;-q&quot;&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;register&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;yum_results&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# ...if so, set fact to true:&lt;/span&gt;
+&lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;set_fact&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;update_needed&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;true&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;when&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;yum_results.rc | int == &lt;/span&gt;&lt;span class=&quot;m&quot;&gt;100&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Each role has the responsibility to deal with technicalities such as:&lt;/p&gt;
+
+    &lt;ul&gt;
+      &lt;li&gt;Handling different operational systems; and&lt;/li&gt;
+      &lt;li&gt;Catching execution failures;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;separation-of-concerns-within-playbooks&quot;&gt;Separation of concerns within playbooks&lt;/h2&gt;
+
+&lt;p&gt;As technicalities are left for roles to deal with, in theory each playbook should be straight forward:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Each playbook is aware of the details of the environment (represented within an inventory) in which it will be running against.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;A playbook can overwrite role default variables when needed (allowing each team to customize the execution of a whole without unnecessary code changes, as previously stated).&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;A good playbook would ideally only control the flow in which roles are executed, managing triggers, for example:&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;language-yml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;# Assume you have a playbook responsible for patching hosts:&lt;/span&gt;
+
+&lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;hosts&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;all&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;gather_facts&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;true&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;become&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;yes&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;roles&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;role&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;check-updates&lt;/span&gt;
+
+    &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;role&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;install-updates&lt;/span&gt;
+      &lt;span class=&quot;na&quot;&gt;when&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;update_needed | default(false)&lt;/span&gt;
+
+    &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;role&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;reboot-host&lt;/span&gt;
+      &lt;span class=&quot;na&quot;&gt;when&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;reboot_required | default(false)&lt;/span&gt;
+
+    &lt;span class=&quot;c1&quot;&gt;# check-updates sets a fact called &quot;update_needed&quot;&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# install-updates is triggered if &quot;update_needed&quot; is true&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# install-updates sets a fact called &quot;reboot_required&quot;&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# reboot-host is triggered if &quot;reboot_required&quot; is true&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Again, if a given value may change depending on execution requirements, this value should be defined as a variable (allowing the engineer to change its execution behaviour without unnecessary code changes).&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Playbooks should import/install roles through the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;requirements.yml&lt;/code&gt; file, as documented &lt;a href=&quot;https://docs.ansible.com/ansible/latest/reference_appendices/galaxy.html#installing-roles&quot;&gt;here&lt;/a&gt;, instead of having their code simply moved, pasted or cloned.&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1 id=&quot;directory-structure-and-git&quot;&gt;Directory structure and Git&lt;/h1&gt;
+
+&lt;p&gt;With the agreement above in mind, the last question to be answered is how to organize all the roles and playbooks directory structure.
+The approach I personally opt for is rather simple, where each role or playbook is a repository of its own. For example:&lt;/p&gt;
+
+&lt;div class=&quot;language-text highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;ansible/
+│
+├── playbooks/
+│   ├── play_automated_patching/  &amp;lt;──┐
+│   ├── play_baseline_config/     &amp;lt;──┼─ private repositories
+│   └── play_setup_django/        &amp;lt;──┘
+│
+├── roles/
+│   ├── role_install_nginx/       &amp;lt;──┐
+│   ├── role_install_mariadb/     &amp;lt;──┤
+│   ├── role_install_python/      &amp;lt;──┼─ public repositories
+│   ├── role_install_updates/     &amp;lt;──┤
+│   ├── role_reboot_host/         &amp;lt;──┤
+│   └── role_check_updates/       &amp;lt;──┘
+│
+└── README.md
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;final-considerations&quot;&gt;Final considerations&lt;/h1&gt;
+
+&lt;p&gt;No matter what rules, architecture or pattern you end up opting for, they must be shared and respected by all of those involved in maintaining the Ansible code base, I believe this is a fundamental key in improving reusability and quality.&lt;/p&gt;</content><author><name>Romero Galiza</name></author><summary type="html">Those experienced with Chef probably first heard about reusability, structuring and versioning when writing their very first cookbook, but as a newcomer to Ansible and facing AWX for the very first time, this seems to be one of the last explored topics, if not left completely unanswered (mostly due to Ansible’s simplistic nature). Even though Ansible provides engineers with a decent amount of information on roles and playbooks, it still leaves room for interpretation on how your code should be structured within an organization or a team. Without prior experience it may be a challenge to visualise the end product, specially in the long term. The question is: How can we organize our Ansible code in a intuitive and readable way, and improve reusability at the same time? In order to answer the question, firstly, an understanding of what each component is concerned about and how they can be accessed need to be agreed upon. Below you will find guidelines based on how I’ve personally interpretated the problem. Access policy Roles are intrinsically public, therefore they must not hold any private information. Playbooks are threated as private, considering they may contain data that should not be publically accessed or shared across teams, for example: variables storing valuable information about a particular host. Separation of concerns Separation of concerns within roles Roles must not contain any unsolved dependencies, for example: If a specific package is required for a given role to function, this dependency needs to be dealt within the role itself. If a given value may change depending on external requirements, this value should be defined as a variable (allowing for a playbook to override it if and when needed). Each role is free to set_facts on any host. This is particularly useful as triggers for further steps within a playbook (but never another role, since ideally roles should never be aware or depend on a different role). I personally like to think about this as the way a role can communicate back to a playbook. When set, a fact must be defined within all test cases. For example, if you need to set a fact such as update_needed = true, its value needs to default to something (either true or false). A host should never finish running a role without defining update_needed. A short example: # Let's pretend for a minute we're writing a task within a role responsible for checking if any updates are need within a CentOS/RHEL host... # start assuming no updates are needed (default behaviour): - set_fact: update_needed: false # check if updates are needed... - name: check yum updates command: &quot;yum check-update -q&quot; register: yum_results # ...if so, set fact to true: - set_fact: update_needed: true when: yum_results.rc | int == 100 Each role has the responsibility to deal with technicalities such as: Handling different operational systems; and Catching execution failures; Separation of concerns within playbooks As technicalities are left for roles to deal with, in theory each playbook should be straight forward: Each playbook is aware of the details of the environment (represented within an inventory) in which it will be running against. A playbook can overwrite role default variables when needed (allowing each team to customize the execution of a whole without unnecessary code changes, as previously stated). A good playbook would ideally only control the flow in which roles are executed, managing triggers, for example: # Assume you have a playbook responsible for patching hosts: - hosts: all gather_facts: true become: yes roles: - role: check-updates - role: install-updates when: - update_needed | default(false) - role: reboot-host when: - reboot_required | default(false) # check-updates sets a fact called &quot;update_needed&quot; # install-updates is triggered if &quot;update_needed&quot; is true # install-updates sets a fact called &quot;reboot_required&quot; # reboot-host is triggered if &quot;reboot_required&quot; is true Again, if a given value may change depending on execution requirements, this value should be defined as a variable (allowing the engineer to change its execution behaviour without unnecessary code changes). Playbooks should import/install roles through the requirements.yml file, as documented here, instead of having their code simply moved, pasted or cloned. Directory structure and Git With the agreement above in mind, the last question to be answered is how to organize all the roles and playbooks directory structure. The approach I personally opt for is rather simple, where each role or playbook is a repository of its own. For example: ansible/ │ ├── playbooks/ │ ├── play_automated_patching/ &amp;lt;──┐ │ ├── play_baseline_config/ &amp;lt;──┼─ private repositories │ └── play_setup_django/ &amp;lt;──┘ │ ├── roles/ │ ├── role_install_nginx/ &amp;lt;──┐ │ ├── role_install_mariadb/ &amp;lt;──┤ │ ├── role_install_python/ &amp;lt;──┼─ public repositories │ ├── role_install_updates/ &amp;lt;──┤ │ ├── role_reboot_host/ &amp;lt;──┤ │ └── role_check_updates/ &amp;lt;──┘ │ └── README.md Final considerations No matter what rules, architecture or pattern you end up opting for, they must be shared and respected by all of those involved in maintaining the Ansible code base, I believe this is a fundamental key in improving reusability and quality.</summary></entry><entry><title type="html">Concourse CI: Pipeline Flow</title><link href="https://blog.devopsie.com/2018-07-14/concourse-pipeline-flow.html" rel="alternate" type="text/html" title="Concourse CI: Pipeline Flow" /><published>2018-07-14T00:00:00+00:00</published><updated>2018-07-14T00:00:00+00:00</updated><id>https://blog.devopsie.com/2018-07-14/concourse-pipeline-flow</id><content type="html" xml:base="https://blog.devopsie.com/2018-07-14/concourse-pipeline-flow.html">&lt;p&gt;This is just a small contribution for those starting with &lt;a href=&quot;https://concourse-ci.org/&quot;&gt;Concourse CI&lt;/a&gt;. As Concourse claims to be built on the simple mechanics of resources, tasks, and job, I will assume you are already familiar with these concepts.&lt;/p&gt;
+
+&lt;p&gt;The diagram below is just a visual representation of how data may flow from task to task and from job to job within a pipeline (only taking into account: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;get&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;put&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;task&lt;/code&gt; &lt;a href=&quot;https://concourse-ci.org/steps.html&quot;&gt;steps&lt;/a&gt;).&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/concourseflow.png&quot; alt=&quot;Concourse pipeline flow&quot; /&gt;
+&lt;em&gt;Concourse pipeline flow&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;Each arrow contains a description (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;get&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;put&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;inputs&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;outputs&lt;/code&gt;) that maps directly to the key you will use in your pipeline YAML definition. The diagram above could be written as the following pseudo-pipeline:&lt;/p&gt;
+
+&lt;div class=&quot;language-yml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nn&quot;&gt;---&lt;/span&gt;
+&lt;span class=&quot;na&quot;&gt;resources&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+  &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;resource-x&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;git&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;source&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+
+  &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;resource-y&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;git&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;source&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+
+  &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;resource-z&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;artifactory&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;source&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+
+&lt;span class=&quot;na&quot;&gt;jobs&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+
+  &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;job-a&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;plan&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+      &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;resource-x&lt;/span&gt;
+
+      &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;task-a&lt;/span&gt;
+        &lt;span class=&quot;na&quot;&gt;config&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+          &lt;span class=&quot;na&quot;&gt;platform&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+          &lt;span class=&quot;na&quot;&gt;image_resource&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+
+          &lt;span class=&quot;na&quot;&gt;inputs&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;resource-x&lt;/span&gt;
+
+          &lt;span class=&quot;na&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+
+          &lt;span class=&quot;na&quot;&gt;outputs&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;my-result-a&lt;/span&gt;
+
+      &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;task-b&lt;/span&gt;
+        &lt;span class=&quot;na&quot;&gt;config&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+          &lt;span class=&quot;na&quot;&gt;platform&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+          &lt;span class=&quot;na&quot;&gt;image_resource&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+
+          &lt;span class=&quot;na&quot;&gt;inputs&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;my-result-a&lt;/span&gt;
+
+          &lt;span class=&quot;na&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+
+          &lt;span class=&quot;na&quot;&gt;outputs&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;my-result-b&lt;/span&gt;
+
+      &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;task-c&lt;/span&gt;
+        &lt;span class=&quot;na&quot;&gt;config&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+          &lt;span class=&quot;na&quot;&gt;platform&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+          &lt;span class=&quot;na&quot;&gt;image_resource&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+
+          &lt;span class=&quot;na&quot;&gt;inputs&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;my-result-b&lt;/span&gt;
+
+          &lt;span class=&quot;na&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+
+          &lt;span class=&quot;na&quot;&gt;outputs&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;resource-z&lt;/span&gt;
+
+      &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;put&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;resource-z&lt;/span&gt;
+
+  &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;job-b&lt;/span&gt;
+    &lt;span class=&quot;na&quot;&gt;plan&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+      &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;resource-y&lt;/span&gt;
+
+      &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;task-a&lt;/span&gt;
+        &lt;span class=&quot;na&quot;&gt;config&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+          &lt;span class=&quot;na&quot;&gt;platform&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+          &lt;span class=&quot;na&quot;&gt;image_resource&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+
+          &lt;span class=&quot;na&quot;&gt;inputs&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;resource-y&lt;/span&gt;
+
+          &lt;span class=&quot;na&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+
+          &lt;span class=&quot;na&quot;&gt;outputs&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;my-result-a&lt;/span&gt;
+
+      &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;task-b&lt;/span&gt;
+        &lt;span class=&quot;na&quot;&gt;config&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+          &lt;span class=&quot;na&quot;&gt;platform&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+          &lt;span class=&quot;na&quot;&gt;image_resource&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+
+          &lt;span class=&quot;na&quot;&gt;inputs&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;my-result-a&lt;/span&gt;
+
+          &lt;span class=&quot;na&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+
+          &lt;span class=&quot;na&quot;&gt;outputs&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;my-result-b&lt;/span&gt;
+
+      &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;task&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;task-c&lt;/span&gt;
+        &lt;span class=&quot;na&quot;&gt;config&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+          &lt;span class=&quot;na&quot;&gt;platform&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+          &lt;span class=&quot;na&quot;&gt;image_resource&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+
+          &lt;span class=&quot;na&quot;&gt;inputs&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;my-result-b&lt;/span&gt;
+
+          &lt;span class=&quot;na&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+
+          &lt;span class=&quot;na&quot;&gt;outputs&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# (...)&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# and so on...&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Even though the official documentation only covers &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;volumes&lt;/code&gt; from a reasonably broad perspective, I think it’s essential to understand their role within a pipeline context a bit deeper.&lt;/p&gt;
+
+&lt;h2 id=&quot;volumes&quot;&gt;Volumes&lt;/h2&gt;
+
+&lt;p&gt;Work in progress…&lt;/p&gt;</content><author><name>Romero Galiza</name></author><summary type="html">This is just a small contribution for those starting with Concourse CI. As Concourse claims to be built on the simple mechanics of resources, tasks, and job, I will assume you are already familiar with these concepts. The diagram below is just a visual representation of how data may flow from task to task and from job to job within a pipeline (only taking into account: get, put and task steps). Concourse pipeline flow Each arrow contains a description (get, put, inputs, outputs) that maps directly to the key you will use in your pipeline YAML definition. The diagram above could be written as the following pseudo-pipeline: --- resources: - name: resource-x type: git source: # (...) - name: resource-y type: git source: # (...) - name: resource-z type: artifactory source: # (...) jobs: - name: job-a plan: - get: resource-x - task: task-a config: platform: # (...) image_resource: # (...) inputs: - name: resource-x run: # (...) outputs: - name: my-result-a - task: task-b config: platform: # (...) image_resource: # (...) inputs: - name: my-result-a run: # (...) outputs: - name: my-result-b - task: task-c config: platform: # (...) image_resource: # (...) inputs: - name: my-result-b run: # (...) outputs: - name: resource-z - put: resource-z - name: job-b plan: - get: resource-y - task: task-a config: platform: # (...) image_resource: # (...) inputs: - name: resource-y run: # (...) outputs: - name: my-result-a - task: task-b config: platform: # (...) image_resource: # (...) inputs: - name: my-result-a run: # (...) outputs: - name: my-result-b - task: task-c config: platform: # (...) image_resource: # (...) inputs: - name: my-result-b run: # (...) outputs: - name: # (...) # and so on... Even though the official documentation only covers volumes from a reasonably broad perspective, I think it’s essential to understand their role within a pipeline context a bit deeper. Volumes Work in progress…</summary></entry></feed>

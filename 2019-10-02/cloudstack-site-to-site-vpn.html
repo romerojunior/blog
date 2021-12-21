@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-122432016-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-122432016-1');
+</script>
+
+  
+
+  <title>
+    
+      CloudStack: Site-to-Site VPN between regions &middot; DevOpsie
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Fira+Mono:400,700'>
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+
+  <!-- RSS -->
+  <link type="application/atom+xml" rel="alternate" href="https://blog.devopsie.com/feed.xml" title="DevOpsie" />
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/">
+          <h2 class="nav-title">DevOpsie<span class="wired-dot">!</span></h2>
+        </a>
+        <ul>
+          <li><a href="/about">About</a></li>
+          <li><a href="/">Posts</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Romero Galiza
+    
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2019-10-02 00:00:00 +0000">October 02, 2019</time>
+    
+  </div>
+
+  <h1 class="post-title">CloudStack: Site-to-Site VPN between regions</h1>
+  <div class="post-line"></div>
+
+  <h2 id="problem">Problem</h2>
+
+<p>How can I interconnect VPCs from different regions knowing that each region is controlled by its own cluster of management servers. Our scenario involves two different regions, for the sake of this example, let us name them simply RegionA and RegionB.</p>
+
+<h2 id="solution-irrelevant-settings-and-values-are-ommited">Solution (irrelevant settings and values are ommited)</h2>
+
+<h3 id="step-1-create-a-vpc-in-each-region">Step 1: Create a VPC in each region</h3>
+
+<h3 id="step-2-create-a-site-to-site-vpn-for-each-vpc-created-in-step-1">Step 2: Create a Site-to-Site VPN for each VPC created in step 1</h3>
+
+<p>If you’re using the UI, go to Networks (left-side menu), then click on the the RegionA VPC and then click on button Configure. You will be prompted with a diagram, click on Site-to-Site VPNs inside the VPC. There you must create a new endpoint with a public IP address (normally this should be automatically assigned). The idea behind this step is that each VPC in each region will have its own public endpoint. Repeat the step for RegionB. Save these addresses, we will need them later.</p>
+
+<h3 id="step-3-create-a-customer-gateway-for-each-region">Step 3: Create a Customer Gateway for each Region</h3>
+
+<p>When creating a customer gateway for RegionA, make sure it point to the RegionB Site-to-Site VPN endpoint address created in step 2 (it must go under the Gateway field), and RegionB customer gateway should point to RegionA Site-to-Site VPN endpoint.</p>
+
+<p><img src="/assets/cosmic-gateway.png" alt="Cosmic" /></p>
+
+<ul>
+  <li>
+    <p>The CIDR list field must contain the networks (tiers) from the remote VPC, separated by comma. Only add networks that you would like to make accessible from within your VPC.</p>
+  </li>
+  <li>
+    <p>Note that the customer gateway holds all IPSEC settings, these are a PSK, IKE and ESP settings, they should match between regions.</p>
+  </li>
+</ul>
+
+<h3 id="step-4-create-a-vpn-connection-for-both-regiona-and-regionb-vpcs">Step 4: Create a VPN Connection for both RegionA and RegionB VPCs</h3>
+
+<p>Each VPN Connection should be associated with a VPN Customer Gateway, they should be selected within a dropdown menu. One of them must be marked as Passive (this instante will wait for the connection to be innitiated by the other region).</p>
+
+
+  
+    
+        <!-- Disqus comment section -->
+<div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://blog.devopsie.com/2019-10-02/cloudstack-site-to-site-vpn.html';
+    this.page.identifier = '/2019-10-02/cloudstack-site-to-site-vpn';
+  };
+
+  (function () {
+    var d = document, s = d.createElement('script');
+    s.src = 'https://devopsie.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by
+    Disqus.</a></noscript>
+    
+  
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/2019-10-28/aws-api-gateway-cognito-authorizer.html" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/2019-08-26/gateway-load-balacing-protocol.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+      <span>
+        &copy; <time datetime="2021-12-21 20:11:55 +0000">2021</time> Romero Galiza.
+      </span>
+    </footer>
+  </body>
+</html>

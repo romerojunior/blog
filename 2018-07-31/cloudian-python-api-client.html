@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-122432016-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-122432016-1');
+</script>
+
+  
+
+  <title>
+    
+      Cloudian Python API Client &middot; DevOpsie
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Fira+Mono:400,700'>
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+
+  <!-- RSS -->
+  <link type="application/atom+xml" rel="alternate" href="https://blog.devopsie.com/feed.xml" title="DevOpsie" />
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/">
+          <h2 class="nav-title">DevOpsie<span class="wired-dot">!</span></h2>
+        </a>
+        <ul>
+          <li><a href="/about">About</a></li>
+          <li><a href="/">Posts</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Romero Galiza
+    
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2018-07-31 00:00:00 +0000">July 31, 2018</time>
+    
+  </div>
+
+  <h1 class="post-title">Cloudian Python API Client</h1>
+  <div class="post-line"></div>
+
+  <p><a href="https://ceph.com/ceph-storage/object-storage/">Ceph</a> has been my choice for object storage ever since Giant has been released somewhere in 2016, but recently I have had the change to experience a different (and proprietary) flavour within the terms of capacity and performance scalability, S3 interface support, and data durability.</p>
+
+<p><a href="https://cloudian.com/products/hyperstore/">Cloudian® HyperStore®</a> tries to solve what one would perhaps use <a href="http://docs.ceph.com/docs/master/radosgw/">Ceph Object Gateway</a> (radosgw), which is to provide highly scalable object storage with a compliant S3 interface and features.</p>
+
+<p>During my “trial” I decided to contribute to their product by writing a Python API client, available <a href="https://github.com/romerojunior/cloudian-api">here</a>.</p>
+
+<p>You can easily install it via pip:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pip install cloudianapi
+</code></pre></div></div>
+
+<p>An simple usage example would be instantiating the client and following the same API calls documented on their documentation, as below:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">cloudianapi.client</span> <span class="kn">import</span> <span class="n">CloudianAPIClient</span>
+
+<span class="n">client</span> <span class="o">=</span> <span class="n">CloudianAPIClient</span><span class="p">(</span>
+    <span class="n">url</span><span class="o">=</span><span class="s">"https://admin-api.example.org"</span><span class="p">,</span>
+    <span class="n">user</span><span class="o">=</span><span class="s">"super-admin"</span><span class="p">,</span>
+    <span class="n">key</span><span class="o">=</span><span class="s">"s3cr3t"</span><span class="p">,</span>
+    <span class="n">port</span><span class="o">=</span><span class="mi">8080</span>
+<span class="p">)</span>
+
+<span class="c1"># # Print all nodes from a given region and their respective used capacity:
+</span><span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">client</span><span class="p">.</span><span class="n">monitor</span><span class="p">.</span><span class="n">nodelist</span><span class="p">(</span><span class="n">region</span><span class="o">=</span><span class="s">"eu-east"</span><span class="p">):</span>
+    <span class="k">print</span> <span class="s">'{node}: {value} KB used'</span><span class="p">.</span><span class="nb">format</span><span class="p">(</span>
+        <span class="n">value</span><span class="o">=</span><span class="n">client</span><span class="p">.</span><span class="n">monitor</span><span class="p">.</span><span class="n">host</span><span class="p">(</span><span class="n">nodeId</span><span class="o">=</span><span class="n">node</span><span class="p">)[</span><span class="s">'diskUsedKb'</span><span class="p">][</span><span class="s">'value'</span><span class="p">],</span>
+        <span class="n">node</span><span class="o">=</span><span class="n">node</span>
+    <span class="p">)</span>
+
+<span class="c1"># Deleting user Cartman from a given group:
+</span><span class="n">client</span><span class="p">.</span><span class="n">user</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s">"DELETE"</span><span class="p">,</span> <span class="n">userId</span><span class="o">=</span><span class="s">"Cartman"</span><span class="p">,</span> <span class="n">groupId</span><span class="o">=</span><span class="s">"ABC"</span><span class="p">)</span>
+
+<span class="c1"># Adding user Butters to a given group:
+</span><span class="n">payload</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s">"userId"</span><span class="p">:</span> <span class="s">"Butters"</span><span class="p">,</span>
+    <span class="s">"groupId"</span><span class="p">:</span> <span class="s">"ABC"</span><span class="p">,</span>
+    <span class="s">"userType"</span><span class="p">:</span> <span class="s">"User"</span>
+<span class="p">}</span>
+
+<span class="n">client</span><span class="p">.</span><span class="n">user</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s">'PUT'</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">payload</span><span class="p">)</span>
+
+<span class="c1"># Print details about a given node:
+</span><span class="k">print</span> <span class="n">client</span><span class="p">.</span><span class="n">monitor</span><span class="p">.</span><span class="n">host</span><span class="p">(</span><span class="n">nodeId</span><span class="o">=</span><span class="s">"node01"</span><span class="p">)</span>
+</code></pre></div></div>
+
+
+  
+    
+        <!-- Disqus comment section -->
+<div id="disqus_thread"></div>
+<script>
+  var disqus_config = function () {
+    this.page.url = 'https://blog.devopsie.com/2018-07-31/cloudian-python-api-client.html';
+    this.page.identifier = '/2018-07-31/cloudian-python-api-client';
+  };
+
+  (function () {
+    var d = document, s = d.createElement('script');
+    s.src = 'https://devopsie.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by
+    Disqus.</a></noscript>
+    
+  
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/2018-11-09/python-yum-security-updates.html" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/2018-07-15/structuring-ansible-projects.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+      <span>
+        &copy; <time datetime="2021-12-21 20:11:55 +0000">2021</time> Romero Galiza.
+      </span>
+    </footer>
+  </body>
+</html>
