@@ -52,7 +52,9 @@ Some of the technologies, products and areas I am most comfortable with:
 
 # Coffee?
 
-Interested in having a chat? Feel free to contact me at romero@devopsie.com
+Interested in having a chat? Feel free to contact me on 
+[LinkedIn](https://www.linkedin.com/in/romerojr/) or Discord (SleepyWalker#5558).
+
 
 # Intelectual property
 
