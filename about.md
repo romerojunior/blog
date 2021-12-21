@@ -34,20 +34,21 @@ Some of the programming languages I am most comfortable with:
 * Python
 * Bash/Ksh
 
-Some of the technologies and areas I am most comfortable with:
+Some of the technologies, products and areas I am most comfortable with:
 
-* Terraform & Helm
-* Kubernetes & Docker
+* IaC (Terraform, CloudFormation & CDKs)
+* Kubernetes & Helm
 * Google Cloud Platform
 * Amazon Web Services
-* Chef & Ansible
-* Vault
-* CloudStack
-* F5 Load Balancers
+* Chef, Ansible & Fabric
+* Hashicorp Vault
+* On-prem: CloudStack & VMWare vCenter
+* Type 1 Hypervisors (ESXi, KVM)
+* F5 BIG-IP
 * Ceph Object Storage
 * PostgreSQL
 * BGP & DDoS Mitigation
-* Cisco, Juniper & Arista
+* Cisco (IOS), Juniper (Junos OS) & Arista (EOS)
 
 # Coffee?
 
